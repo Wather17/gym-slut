@@ -35,6 +35,7 @@ import com.gymslut.app.feature.plans.PlanDetailScreen
 import com.gymslut.app.feature.plans.PlansScreen
 import com.gymslut.app.feature.plans.WorkoutEditorScreen
 import com.gymslut.app.feature.today.TodayScreen
+import com.gymslut.app.feature.workout.ActiveWorkoutScreen
 
 /**
  * Shell principal com barra de navegação inferior de 4 abas e rotas secundárias.
@@ -164,9 +165,11 @@ fun GymSlutAppShell() {
             composable(
                 route = AppDestination.ActiveWorkout.route,
                 arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
-            ) { backStack ->
-                val sessionId = backStack.arguments?.getLong("sessionId") ?: 0L
-                PlaceholderScreen(text = "Treino em andamento (#$sessionId)")
+            ) {
+                ActiveWorkoutScreen(
+                    onFinished = { navController.popBackStack() },
+                    onDiscarded = { navController.popBackStack() }
+                )
             }
             composable(AppDestination.Catalog.route) {
                 CatalogScreen()
