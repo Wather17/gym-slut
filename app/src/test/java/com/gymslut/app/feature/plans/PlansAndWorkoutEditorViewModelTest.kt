@@ -17,6 +17,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -117,7 +118,7 @@ class PlansAndWorkoutEditorViewModelTest {
 
         vm.activatePlan()
         advanceUntilIdle()
-        assertEquals(p2, planRepo.observeActivePlan().let { p2 })
+        assertEquals(p2, planRepo.observeActivePlan().first()?.id)
         assertTrue(vm.uiState.value.feedbackMessage!!.contains("ativo"))
         vm.clearFeedbackMessage()
         advanceUntilIdle()

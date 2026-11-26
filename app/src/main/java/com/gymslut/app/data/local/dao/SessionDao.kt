@@ -123,6 +123,27 @@ interface SessionDao {
     @Query("UPDATE session_sets SET completed = :completed, completedAtEpochMs = :completedAtEpochMs WHERE id = :setId")
     suspend fun updateSetCompleted(setId: Long, completed: Boolean, completedAtEpochMs: Long?)
 
+    @Query("SELECT * FROM session_sets WHERE id = :setId")
+    suspend fun getSetById(setId: Long): SessionSetEntity?
+
+    @Update
+    suspend fun updateSets(sets: List<SessionSetEntity>)
+
     @Query("DELETE FROM session_sets WHERE id = :setId")
     suspend fun deleteSetById(setId: Long)
+
+    @Transaction
+    suspend fun deleteSetAndRenumber(setId: Long) {
+        val target = getSetById(setId) ?: return
+        deleteSetById(setId)
+        val remaining = getSetsForSession(target.sessionId)
+            .filter { it.exerciseOrderIndex == target.exerciseOrderIndex }
+        val renumbered = remaining.mapIndexedNotNull { index, set ->
+            val expectedNumber = index + 1
+            if (set.setNumber == expectedNumber) null else set.copy(setNumber = expectedNumber)
+        }
+        if (renumbered.isNotEmpty()) {
+            updateSets(renumbered)
+        }
+    }
 }

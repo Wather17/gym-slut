@@ -82,19 +82,7 @@ class RoomPlanRepository @Inject constructor(
     override suspend fun createPlan(name: String, createdAtEpochMs: Long): Long {
         val cleanName = name.trim()
         require(cleanName.isNotEmpty()) { "Informe o nome do plano." }
-        val shouldActivate = planDao.countPlans() == 0
-        val planId = planDao.insertPlan(
-            TrainingPlanEntity(
-                name = cleanName,
-                isActive = shouldActivate,
-                createdAtEpochMs = createdAtEpochMs
-            )
-        )
-        val defaultSchedule = (1..7).map { day ->
-            WeeklyScheduleEntity(planId = planId, dayOfWeek = day, workoutTemplateId = null)
-        }
-        scheduleDao.upsertScheduleEntries(defaultSchedule)
-        return planId
+        return planDao.createPlanWithDefaultSchedule(cleanName, createdAtEpochMs)
     }
 
     override suspend fun renamePlan(planId: Long, newName: String) {
@@ -105,7 +93,7 @@ class RoomPlanRepository @Inject constructor(
     }
 
     override suspend fun deletePlan(planId: Long) {
-        planDao.deletePlanById(planId)
+        planDao.deletePlanAndEnsureActive(planId)
     }
 
     override suspend fun setActivePlan(planId: Long) {
@@ -216,6 +204,12 @@ class RoomPlanRepository @Inject constructor(
 
     override suspend fun setScheduleDay(planId: Long, dayOfWeek: Int, workoutTemplateId: Long?) {
         require(dayOfWeek in 1..7) { "Dia da semana inválido: $dayOfWeek" }
+        if (workoutTemplateId != null) {
+            val template = planDao.getTemplateById(workoutTemplateId)
+            require(template != null && template.planId == planId) {
+                "Treino não pertence ao plano selecionado."
+            }
+        }
         scheduleDao.upsertScheduleEntry(
             WeeklyScheduleEntity(
                 planId = planId,

@@ -184,6 +184,8 @@ class CatalogViewModel @Inject constructor(
                 }
                 formError.value = null
                 onSuccess()
+            } catch (e: DuplicateResourceException) {
+                formError.value = e.message
             } catch (e: IllegalArgumentException) {
                 formError.value = e.message ?: "Dados inválidos."
             }

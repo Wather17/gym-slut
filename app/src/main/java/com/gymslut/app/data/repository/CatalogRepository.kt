@@ -136,6 +136,9 @@ class RoomCatalogRepository @Inject constructor(
         val cleanName = name.trim()
         require(cleanName.isNotEmpty()) { "Informe o nome do exercício." }
         require(equipmentDao.getById(equipmentId) != null) { "Selecione um aparelho válido." }
+        if (exerciseDao.getByNameAndEquipment(cleanName, equipmentId) != null) {
+            throw DuplicateResourceException("Já existe o exercício \"$cleanName\" neste aparelho.")
+        }
         return exerciseDao.insert(
             ExerciseEntity(
                 name = cleanName,
@@ -161,6 +164,10 @@ class RoomCatalogRepository @Inject constructor(
         val cleanName = name.trim()
         require(cleanName.isNotEmpty()) { "Informe o nome do exercício." }
         require(equipmentDao.getById(equipmentId) != null) { "Selecione um aparelho válido." }
+        val existing = exerciseDao.getByNameAndEquipment(cleanName, equipmentId)
+        if (existing != null && existing.id != id) {
+            throw DuplicateResourceException("Já existe o exercício \"$cleanName\" neste aparelho.")
+        }
         exerciseDao.update(
             current.copy(
                 name = cleanName,
