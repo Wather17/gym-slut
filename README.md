@@ -31,13 +31,19 @@ Para detalhes completos de arquitetura, modelo de dados e roadmap, consulte [doc
 
 ## Comandos de Build e Validação
 
-Após o scaffold inicial (`#1`):
-
 ```bash
 ./gradlew testDebugUnitTest
 ./gradlew lintDebug
 ./gradlew assembleDebug
+./gradlew assembleRelease
 ```
+
+## CI/CD e Releases
+
+- **CI**: todo push/PR para `main` executa testes unitários, Android Lint, build Debug e verificação Release com R8 em [.github/workflows/android-ci.yml](.github/workflows/android-ci.yml).
+- **CD**: tags SemVer (`vX.Y.Z`, ex.: `v1.0.0` ou `v1.0.0-rc.1`) disparam [.github/workflows/android-release.yml](.github/workflows/android-release.yml), gerando APK assinado com R8, checksum `.sha256` e GitHub Release automática.
+
+Consulte o passo a passo de keystore, secrets e publicação em [docs/RELEASE.md](docs/RELEASE.md).
 
 ## Fluxo de Desenvolvimento por Issues
 
