@@ -96,3 +96,5 @@ Após baixar os dois arquivos da página de Releases do GitHub:
 sha256sum -c gym-slut-v1.0.0.apk.sha256
 adb install -r gym-slut-v1.0.0.apk
 ```
+
+> **Nota sobre coexistência com builds `debug`:** o build `debug` usa `applicationId = "com.gymslut.app.debug"` e aparece como **Gym Slut (Debug)** na launcher, permitindo mantê-lo instalado junto com o APK `release` (`com.gymslut.app`, **Gym Slut**) sem conflito de assinatura e com dados isolados.
