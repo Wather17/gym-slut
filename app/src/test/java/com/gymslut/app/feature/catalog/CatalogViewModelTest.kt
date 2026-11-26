@@ -141,6 +141,16 @@ class CatalogViewModelTest {
         assertTrue(exSaved)
 
         val createdEx = viewModel.uiState.value.exercises.first { it.exercise.name == "Hack Squat" }
+
+        // Duplicidade de exercício no mesmo aparelho é rejeitada com formError
+        var duplicateExSaved = false
+        viewModel.saveExercise(null, "  hack squat ", MuscleGroup.QUADS, null, createdEq.id, "") {
+            duplicateExSaved = true
+        }
+        advanceUntilIdle()
+        assertFalse(duplicateExSaved)
+        assertTrue(viewModel.uiState.value.formError!!.contains("Já existe"))
+
         var exEdited = false
         viewModel.saveExercise(
             createdEx.exercise.id,
@@ -264,10 +274,14 @@ class CatalogViewModelTest {
             equipmentId: Long,
             notes: String
         ): Long {
+            val clean = name.trim()
+            if (exercisesFlow.value.any { it.equipmentId == equipmentId && it.name.equals(clean, ignoreCase = true) }) {
+                throw DuplicateResourceException("Já existe o exercício \"$clean\" neste aparelho.")
+            }
             val id = nextId++
             exercisesFlow.value = exercisesFlow.value + ExerciseEntity(
                 id = id,
-                name = name.trim(),
+                name = clean,
                 primaryMuscle = primaryMuscle,
                 secondaryMuscle = secondaryMuscle,
                 equipmentId = equipmentId,

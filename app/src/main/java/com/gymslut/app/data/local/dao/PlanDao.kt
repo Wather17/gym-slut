@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
 import com.gymslut.app.data.local.entity.TrainingPlanEntity
+import com.gymslut.app.data.local.entity.WeeklyScheduleEntity
 import com.gymslut.app.data.local.entity.WorkoutExerciseEntity
 import com.gymslut.app.data.local.entity.WorkoutTemplateEntity
 import com.gymslut.app.data.model.WorkoutExerciseDetail
@@ -30,14 +31,49 @@ interface PlanDao {
     @Query("SELECT COUNT(*) FROM training_plans")
     suspend fun countPlans(): Int
 
+    @Query("SELECT id FROM training_plans ORDER BY createdAtEpochMs DESC, id DESC LIMIT 1")
+    suspend fun getLatestPlanId(): Long?
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPlan(plan: TrainingPlanEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertDefaultSchedule(entries: List<WeeklyScheduleEntity>)
+
+    @Transaction
+    suspend fun createPlanWithDefaultSchedule(name: String, createdAtEpochMs: Long): Long {
+        val shouldActivate = getActivePlan() == null
+        val planId = insertPlan(
+            TrainingPlanEntity(
+                name = name,
+                isActive = shouldActivate,
+                createdAtEpochMs = createdAtEpochMs
+            )
+        )
+        val defaultSchedule = (1..7).map { day ->
+            WeeklyScheduleEntity(planId = planId, dayOfWeek = day, workoutTemplateId = null)
+        }
+        upsertDefaultSchedule(defaultSchedule)
+        return planId
+    }
 
     @Update
     suspend fun updatePlan(plan: TrainingPlanEntity)
 
     @Query("DELETE FROM training_plans WHERE id = :planId")
     suspend fun deletePlanById(planId: Long)
+
+    @Transaction
+    suspend fun deletePlanAndEnsureActive(planId: Long) {
+        val deletedWasActive = getById(planId)?.isActive == true
+        deletePlanById(planId)
+        if (deletedWasActive && getActivePlan() == null) {
+            val fallbackPlanId = getLatestPlanId()
+            if (fallbackPlanId != null) {
+                markPlanActive(fallbackPlanId)
+            }
+        }
+    }
 
     @Query("UPDATE training_plans SET isActive = 0")
     suspend fun clearActivePlans()

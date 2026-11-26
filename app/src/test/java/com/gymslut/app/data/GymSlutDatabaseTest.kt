@@ -171,6 +171,20 @@ class GymSlutDatabaseTest {
         assertNull(joined.first().exercise.secondaryMuscle)
         assertEquals("foco cotovelo", joined.first().exercise.notes)
 
+        // Duplicidade de exercício no mesmo aparelho bloqueada; mesmo nome em outro aparelho permitido
+        try {
+            catalogRepo.createExercise("  tríceps unilateral ", MuscleGroup.TRICEPS, null, eq1)
+            fail("Esperado DuplicateResourceException para exercício duplicado no mesmo aparelho")
+        } catch (_: DuplicateResourceException) {
+        }
+        val otherEqExId = catalogRepo.createExercise("Tríceps Unilateral", MuscleGroup.TRICEPS, null, eq2)
+        try {
+            catalogRepo.updateExercise(exId, "Tríceps Unilateral", MuscleGroup.TRICEPS, null, eq2)
+            fail("Esperado DuplicateResourceException ao mover exercício para aparelho com mesmo nome")
+        } catch (_: DuplicateResourceException) {
+        }
+        catalogRepo.deleteExercise(otherEqExId)
+
         // Erros ao criar/atualizar exercício
         try {
             catalogRepo.createExercise(" ", MuscleGroup.CHEST, null, eq1)
@@ -287,7 +301,7 @@ class GymSlutDatabaseTest {
         planRepo.moveWorkoutExercise(t1, we2, moveUp = true)
         assertEquals(listOf(we2, we1), planRepo.observeWorkoutExercises(t1).first().map { it.id })
 
-        // Cronograma fora do intervalo 1..7 deve falhar
+        // Cronograma fora do intervalo 1..7 ou template de outro plano deve falhar
         try {
             planRepo.setScheduleDay(p2, 0, t1)
             fail("dayOfWeek=0 deve falhar")
@@ -298,6 +312,16 @@ class GymSlutDatabaseTest {
             fail("dayOfWeek=8 deve falhar")
         } catch (_: IllegalArgumentException) {
         }
+        try {
+            planRepo.setScheduleDay(p1, 1, t1)
+            fail("Template de outro plano deveria falhar")
+        } catch (_: IllegalArgumentException) {
+        }
+        try {
+            planRepo.setScheduleDay(p2, 1, 9999L)
+            fail("Template inexistente deveria falhar")
+        } catch (_: IllegalArgumentException) {
+        }
         planRepo.setScheduleDay(p2, 1, t1)
         assertEquals(t1, db.scheduleDao().getScheduleEntry(p2, 1)?.workoutTemplateId)
 
@@ -305,8 +329,16 @@ class GymSlutDatabaseTest {
         planRepo.deleteWorkoutTemplate(t1)
         assertNull(db.scheduleDao().getScheduleEntry(p2, 1)?.workoutTemplateId)
 
+        // Excluir o plano ativo (p2) promove automaticamente o plano restante (p1) para ativo
+        planRepo.deletePlan(p2)
+        assertNull(planRepo.getPlanById(p2))
+        assertEquals(p1, db.planDao().getActivePlan()?.id)
+
+        // Excluir último plano deixa 0 planos ativos; criar novo ativa novamente
         planRepo.deletePlan(p1)
-        assertNull(planRepo.getPlanById(p1))
+        assertNull(db.planDao().getActivePlan())
+        val p3 = planRepo.createPlan("Plano C", createdAtEpochMs = 300L)
+        assertEquals(p3, db.planDao().getActivePlan()?.id)
     }
 
     @Test
@@ -379,11 +411,19 @@ class GymSlutDatabaseTest {
         assertEquals(80.0, s3Sets[1].weightKg, 0.001)
         assertEquals(80.0, s3Sets[2].weightKg, 0.001)
 
-        // addExtraSet + removeSet + erro para exerciseOrderIndex inexistente
+        // addExtraSet + removeSet (inclusive série intermediária renumerando 1..N) + erro para exerciseOrderIndex inexistente
         val extraId = sessionRepo.addExtraSet(s3, exerciseOrderIndex = 0)
-        assertEquals(4, sessionRepo.observeSetsForSession(s3).first().last().setNumber)
+        val fourSets = sessionRepo.observeSetsForSession(s3).first()
+        assertEquals(listOf(1, 2, 3, 4), fourSets.map { it.setNumber })
+        sessionRepo.updateSetWeight(fourSets[2].id, 92.5)
+        // Remover a série intermediária S2 renumera as restantes para 1, 2, 3 sem lacunas
+        sessionRepo.removeSet(fourSets[1].id)
+        val afterMiddleRemove = sessionRepo.observeSetsForSession(s3).first()
+        assertEquals(listOf(1, 2, 3), afterMiddleRemove.map { it.setNumber })
+        assertEquals(92.5, afterMiddleRemove[1].weightKg, 0.001)
         sessionRepo.removeSet(extraId)
-        assertEquals(3, sessionRepo.observeSetsForSession(s3).first().size)
+        assertEquals(listOf(1, 2), sessionRepo.observeSetsForSession(s3).first().map { it.setNumber })
+        sessionRepo.removeSet(9999L) // no-op seguro
 
         try {
             sessionRepo.addExtraSet(s3, exerciseOrderIndex = 99)

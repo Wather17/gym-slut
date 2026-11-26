@@ -145,7 +145,7 @@ class RoomSessionRepository @Inject constructor(
     }
 
     override suspend fun removeSet(setId: Long) {
-        sessionDao.deleteSetById(setId)
+        sessionDao.deleteSetAndRenumber(setId)
     }
 
     override suspend fun finishSession(sessionId: Long, finishedAtEpochMs: Long) {
