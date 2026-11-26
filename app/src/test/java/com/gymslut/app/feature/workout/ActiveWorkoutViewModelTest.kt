@@ -2,6 +2,7 @@ package com.gymslut.app.feature.workout
 
 import androidx.lifecycle.SavedStateHandle
 import com.gymslut.app.core.notification.RestAlertNotifier
+import com.gymslut.app.core.notification.RestTimerServiceController
 import com.gymslut.app.core.preferences.PreferencesRepository
 import com.gymslut.app.core.preferences.ThemeMode
 import com.gymslut.app.core.preferences.WorkoutPreferences
@@ -46,6 +47,7 @@ class ActiveWorkoutViewModelTest {
     private lateinit var planRepo: FakeWorkoutPlanRepository
     private lateinit var prefsRepo: FakeWorkoutPreferencesRepository
     private lateinit var notifier: FakeRestNotifier
+    private lateinit var serviceController: FakeRestServiceController
     private var nowMs = 1_000L
 
     @Before
@@ -55,6 +57,7 @@ class ActiveWorkoutViewModelTest {
         planRepo = FakeWorkoutPlanRepository()
         prefsRepo = FakeWorkoutPreferencesRepository()
         notifier = FakeRestNotifier()
+        serviceController = FakeRestServiceController()
     }
 
     @After
@@ -75,13 +78,19 @@ class ActiveWorkoutViewModelTest {
 
     @Test
     fun editWeightRepsTimerControlsAddRemoveAndFinish_workAsExpected() = runTest(testDispatcher) {
+        val timerManager = RestTimerSessionManager(
+            ElapsedTimeProvider { nowMs },
+            prefsRepo,
+            notifier,
+            serviceController,
+            backgroundScope
+        )
         val vm = ActiveWorkoutViewModel(
             SavedStateHandle(mapOf("sessionId" to 1L)),
             sessionRepo,
             planRepo,
             prefsRepo,
-            ElapsedTimeProvider { nowMs },
-            notifier
+            timerManager
         )
         val job = launch { vm.uiState.collect() }
         advanceUntilIdle()
@@ -171,13 +180,19 @@ class ActiveWorkoutViewModelTest {
     @Test
     fun sessionWithoutTemplate_usesDefaultRestSecondsAndDiscardCancelsTimer() = runTest(testDispatcher) {
         sessionRepo.sessionFlow.value = WorkoutSessionEntity(1L, null, null, "Treino Antigo", 1000L, null)
+        val timerManager = RestTimerSessionManager(
+            ElapsedTimeProvider { nowMs },
+            prefsRepo,
+            notifier,
+            serviceController,
+            backgroundScope
+        )
         val vm = ActiveWorkoutViewModel(
             SavedStateHandle(mapOf("sessionId" to 1L)),
             sessionRepo,
             planRepo,
             prefsRepo,
-            ElapsedTimeProvider { nowMs },
-            notifier
+            timerManager
         )
         val job = launch { vm.uiState.collect() }
         advanceUntilIdle()
@@ -205,13 +220,19 @@ class ActiveWorkoutViewModelTest {
             WorkoutExerciseDetail(1L, 10L, 99L, 0, 3, 10, 180, "Outro", "Máquina"),
             WorkoutExerciseDetail(2L, 10L, 5L, 1, 2, 10, 75, "Supino Reto", "Supino Reto")
         )
+        val timerManager = RestTimerSessionManager(
+            ElapsedTimeProvider { nowMs },
+            prefsRepo,
+            notifier,
+            serviceController,
+            backgroundScope
+        )
         val vm = ActiveWorkoutViewModel(
             SavedStateHandle(mapOf("sessionId" to 1L)),
             sessionRepo,
             planRepo,
             prefsRepo,
-            ElapsedTimeProvider { nowMs },
-            notifier
+            timerManager
         )
         val job = launch { vm.uiState.collect() }
         advanceUntilIdle()
@@ -247,13 +268,19 @@ class ActiveWorkoutViewModelTest {
     fun workoutPreferencesDisabled_skipsAutoStartAndDisablesRestVibration() = runTest(testDispatcher) {
         prefsRepo.setAutoStartRestTimer(false)
         prefsRepo.setRestTimerVibrationEnabled(false)
+        val timerManager = RestTimerSessionManager(
+            ElapsedTimeProvider { nowMs },
+            prefsRepo,
+            notifier,
+            serviceController,
+            backgroundScope
+        )
         val vm = ActiveWorkoutViewModel(
             SavedStateHandle(mapOf("sessionId" to 1L)),
             sessionRepo,
             planRepo,
             prefsRepo,
-            ElapsedTimeProvider { nowMs },
-            notifier
+            timerManager
         )
         val job = launch { vm.uiState.collect() }
         advanceUntilIdle()
@@ -273,7 +300,37 @@ class ActiveWorkoutViewModelTest {
         advanceTimeBy(2_500L)
         runCurrent()
         assertEquals(listOf("Supino Reto" to false), notifier.notifiedWithVibrate)
+
+        // Recriar ViewModel mantém timer em andamento (sobrevive à navegação para outra aba)
+        vm.toggleSetCompleted(vm.uiState.value.exerciseGroups.first().sets[1], 60)
+        runCurrent()
+        vm.toggleSetCompleted(vm.uiState.value.exerciseGroups.first().sets[1], 60)
+        runCurrent()
+        assertTrue(vm.timerState.value.isActive)
+
+        val recreatedVm = ActiveWorkoutViewModel(
+            SavedStateHandle(mapOf("sessionId" to 1L)),
+            sessionRepo,
+            planRepo,
+            prefsRepo,
+            timerManager
+        )
+        assertTrue(recreatedVm.timerState.value.isActive)
+        assertEquals(60, recreatedVm.timerState.value.remainingSeconds)
+        recreatedVm.skipTimer()
         job.cancel()
+    }
+
+    private class FakeRestServiceController : RestTimerServiceController {
+        var starts = 0
+        var stops = 0
+        override fun start() {
+            starts++
+        }
+
+        override fun stop() {
+            stops++
+        }
     }
 
     private class FakeRestNotifier : RestAlertNotifier {
