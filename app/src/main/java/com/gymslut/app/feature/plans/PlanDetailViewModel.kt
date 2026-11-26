@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymslut.app.data.local.entity.TrainingPlanEntity
+import com.gymslut.app.data.local.entity.WeeklyScheduleEntity
 import com.gymslut.app.data.local.entity.WorkoutTemplateEntity
 import com.gymslut.app.data.repository.PlanRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,6 +20,7 @@ import javax.inject.Inject
 data class PlanDetailUiState(
     val plan: TrainingPlanEntity? = null,
     val templates: List<WorkoutTemplateEntity> = emptyList(),
+    val scheduleByDay: Map<Int, Long?> = (1..7).associateWith { null },
     val formError: String? = null,
     val feedbackMessage: String? = null
 )
@@ -36,12 +38,17 @@ class PlanDetailViewModel @Inject constructor(
     val uiState: StateFlow<PlanDetailUiState> = combine(
         planRepository.observeAllPlans().map { plans -> plans.firstOrNull { it.id == planId } },
         planRepository.observeTemplatesForPlan(planId),
+        planRepository.observeScheduleForPlan(planId),
         formError,
         feedbackMessage
-    ) { plan, templates, error, feedback ->
+    ) { plan, templates, schedule, error, feedback ->
+        val scheduleMap = (1..7).associateWith { day ->
+            schedule.firstOrNull { it.dayOfWeek == day }?.workoutTemplateId
+        }
         PlanDetailUiState(
             plan = plan,
             templates = templates,
+            scheduleByDay = scheduleMap,
             formError = error,
             feedbackMessage = feedback
         )
@@ -95,6 +102,12 @@ class PlanDetailViewModel @Inject constructor(
     fun moveWorkoutTemplate(template: WorkoutTemplateEntity, moveUp: Boolean) {
         viewModelScope.launch {
             planRepository.moveWorkoutTemplate(planId, template.id, moveUp)
+        }
+    }
+
+    fun setScheduleDay(dayOfWeek: Int, workoutTemplateId: Long?) {
+        viewModelScope.launch {
+            planRepository.setScheduleDay(planId, dayOfWeek, workoutTemplateId)
         }
     }
 }
