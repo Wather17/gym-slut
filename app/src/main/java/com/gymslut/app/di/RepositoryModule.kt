@@ -1,9 +1,13 @@
 package com.gymslut.app.di
 
+import com.gymslut.app.core.notification.AndroidRestTimerNotifier
+import com.gymslut.app.core.notification.RestAlertNotifier
 import com.gymslut.app.core.preferences.DataStorePreferencesRepository
 import com.gymslut.app.core.preferences.PreferencesRepository
 import com.gymslut.app.core.time.CurrentDateProvider
 import com.gymslut.app.core.time.SystemCurrentDateProvider
+import com.gymslut.app.feature.workout.ElapsedTimeProvider
+import com.gymslut.app.feature.workout.SystemElapsedTimeProvider
 import com.gymslut.app.data.repository.CatalogRepository
 import com.gymslut.app.data.repository.PlanRepository
 import com.gymslut.app.data.repository.RoomCatalogRepository
@@ -31,6 +35,18 @@ abstract class RepositoryModule {
     abstract fun bindCurrentDateProvider(
         impl: SystemCurrentDateProvider
     ): CurrentDateProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindRestAlertNotifier(
+        impl: AndroidRestTimerNotifier
+    ): RestAlertNotifier
+
+    @Binds
+    @Singleton
+    abstract fun bindElapsedTimeProvider(
+        impl: SystemElapsedTimeProvider
+    ): ElapsedTimeProvider
 
     @Binds
     @Singleton
