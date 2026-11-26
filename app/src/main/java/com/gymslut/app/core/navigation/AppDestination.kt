@@ -24,6 +24,9 @@ sealed class AppDestination(val route: String) {
     data object WorkoutEditor : AppDestination("workout_editor/{workoutTemplateId}") {
         fun createRoute(workoutTemplateId: Long): String = "workout_editor/$workoutTemplateId"
     }
+    data object ActiveWorkout : AppDestination("active_workout/{sessionId}") {
+        fun createRoute(sessionId: Long): String = "active_workout/$sessionId"
+    }
 }
 
 /**

@@ -34,6 +34,7 @@ import com.gymslut.app.feature.catalog.CatalogScreen
 import com.gymslut.app.feature.plans.PlanDetailScreen
 import com.gymslut.app.feature.plans.PlansScreen
 import com.gymslut.app.feature.plans.WorkoutEditorScreen
+import com.gymslut.app.feature.today.TodayScreen
 
 /**
  * Shell principal com barra de navegação inferior de 4 abas e rotas secundárias.
@@ -55,6 +56,7 @@ fun GymSlutAppShell() {
         AppDestination.Settings.route -> stringResource(R.string.nav_settings)
         AppDestination.PlanDetail.route -> stringResource(R.string.nav_plan_detail)
         AppDestination.WorkoutEditor.route -> stringResource(R.string.nav_workout_editor)
+        AppDestination.ActiveWorkout.route -> stringResource(R.string.nav_active_workout)
         else -> stringResource(R.string.app_name)
     }
 
@@ -121,7 +123,20 @@ fun GymSlutAppShell() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(AppDestination.Today.route) {
-                PlaceholderScreen(text = stringResource(R.string.placeholder_today))
+                TodayScreen(
+                    onNavigateToPlans = {
+                        navController.navigate(AppDestination.Plans.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onOpenActiveSession = { sessionId ->
+                        navController.navigate(AppDestination.ActiveWorkout.createRoute(sessionId))
+                    }
+                )
             }
             composable(AppDestination.Plans.route) {
                 PlansScreen(
@@ -145,6 +160,13 @@ fun GymSlutAppShell() {
                 arguments = listOf(navArgument("workoutTemplateId") { type = NavType.LongType })
             ) {
                 WorkoutEditorScreen()
+            }
+            composable(
+                route = AppDestination.ActiveWorkout.route,
+                arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
+            ) { backStack ->
+                val sessionId = backStack.arguments?.getLong("sessionId") ?: 0L
+                PlaceholderScreen(text = "Treino em andamento (#$sessionId)")
             }
             composable(AppDestination.Catalog.route) {
                 CatalogScreen()

@@ -7,6 +7,7 @@
     <string name="nav_settings">Configurações</string>
     <string name="nav_plan_detail">Detalhes do Plano</string>
     <string name="nav_workout_editor">Editar Treino</string>
+    <string name="nav_active_workout">Treino Ativo</string>
     <string name="action_back">Voltar</string>
     <string name="placeholder_today">Seu treino do dia aparecerá aqui.</string>
     <string name="placeholder_plans">Seus planos de treino e cronograma semanal aparecerão aqui.</string>

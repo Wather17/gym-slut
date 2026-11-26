@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -23,10 +24,13 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -43,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gymslut.app.core.time.WeekdayLabels
 import com.gymslut.app.data.local.entity.WorkoutTemplateEntity
 
 @Composable
@@ -184,6 +189,27 @@ fun PlanDetailScreen(
                         }
                     }
                 }
+
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Cronograma semanal",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+
+                items((1..7).toList(), key = { day -> "schedule_$day" }) { day ->
+                    val assignedId = state.scheduleByDay[day]
+                    val assignedName = state.templates.firstOrNull { it.id == assignedId }?.name ?: "Descanso"
+                    ScheduleDayRow(
+                        dayLabel = WeekdayLabels.fullName(day),
+                        assignedLabel = assignedName,
+                        templates = state.templates,
+                        onSelectTemplate = { templateId ->
+                            viewModel.setScheduleDay(day, templateId)
+                        }
+                    )
+                }
             }
         }
     }
@@ -226,5 +252,58 @@ fun PlanDetailScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun ScheduleDayRow(
+    dayLabel: String,
+    assignedLabel: String,
+    templates: List<WorkoutTemplateEntity>,
+    onSelectTemplate: (Long?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = dayLabel,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f)
+            )
+            Box {
+                OutlinedButton(onClick = { expanded = true }) {
+                    Text(text = assignedLabel)
+                }
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Descanso") },
+                        onClick = {
+                            onSelectTemplate(null)
+                            expanded = false
+                        }
+                    )
+                    templates.forEach { template ->
+                        DropdownMenuItem(
+                            text = { Text(template.name) },
+                            onClick = {
+                                onSelectTemplate(template.id)
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
     }
 }
