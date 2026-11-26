@@ -18,6 +18,12 @@ sealed class AppDestination(val route: String) {
     data object Catalog : AppDestination("catalog")
     data object History : AppDestination("history")
     data object Settings : AppDestination("settings")
+    data object PlanDetail : AppDestination("plan_detail/{planId}") {
+        fun createRoute(planId: Long): String = "plan_detail/$planId"
+    }
+    data object WorkoutEditor : AppDestination("workout_editor/{workoutTemplateId}") {
+        fun createRoute(workoutTemplateId: Long): String = "workout_editor/$workoutTemplateId"
+    }
 }
 
 /**
