@@ -6,3 +6,18 @@ GEMINI.md
 .agents/skills/autonomous-batch/SKILL.md
 # Synced GitHub issues
 issues/
+
+# Gradle & Android
+.gradle/
+build/
+*/build/
+local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
+.idea/
+*.iml
+.DS_Store
+captures/
+.cxx/
