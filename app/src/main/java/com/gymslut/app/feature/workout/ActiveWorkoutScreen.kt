@@ -3,6 +3,7 @@ package com.gymslut.app.feature.workout
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -58,12 +59,18 @@ import java.util.Locale
 fun ActiveWorkoutScreen(
     onFinished: () -> Unit,
     onDiscarded: () -> Unit,
+    onNavigateBack: () -> Unit = {},
     viewModel: ActiveWorkoutViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val timerState by viewModel.timerState.collectAsStateWithLifecycle()
     var showFinishDialog by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var showLeaveDialog by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = state.session != null) {
+        showLeaveDialog = true
+    }
 
     val context = LocalContext.current
     var askedNotificationPermission by remember { mutableStateOf(false) }
@@ -215,6 +222,33 @@ fun ActiveWorkoutScreen(
             dismissButton = {
                 TextButton(onClick = { showDiscardDialog = false }) {
                     Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (showLeaveDialog) {
+        AlertDialog(
+            onDismissRequest = { showLeaveDialog = false },
+            title = { Text("Sair da tela de treino?") },
+            text = {
+                Text(
+                    "Sua sessão continua salva em andamento na aba Hoje para retomar quando quiser."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLeaveDialog = false
+                        onNavigateBack()
+                    }
+                ) {
+                    Text("Sair por agora")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLeaveDialog = false }) {
+                    Text("Continuar treino")
                 }
             }
         )

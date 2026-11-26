@@ -13,6 +13,7 @@ import com.gymslut.app.data.repository.SessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -36,6 +37,8 @@ class TodayViewModel @Inject constructor(
         val schedule: List<WeeklyScheduleEntity>
     )
 
+    private val currentDate = MutableStateFlow(currentDateProvider.today())
+
     private val activePlanBundle: Flow<PlanBundle> =
         planRepository.observeActivePlan().flatMapLatest { activePlan ->
             if (activePlan == null) {
@@ -51,9 +54,10 @@ class TodayViewModel @Inject constructor(
         }
 
     private val scheduledExercisesFlow: Flow<List<WorkoutExerciseDetail>> =
-        activePlanBundle.flatMapLatest { bundle ->
-            val todayDay = currentDateProvider.today().dayOfWeek.value
-            val templateId = bundle.schedule.firstOrNull { it.dayOfWeek == todayDay }?.workoutTemplateId
+        combine(activePlanBundle, currentDate) { bundle, date ->
+            val todayDay = date.dayOfWeek.value
+            bundle.schedule.firstOrNull { it.dayOfWeek == todayDay }?.workoutTemplateId
+        }.flatMapLatest { templateId ->
             if (templateId == null) {
                 flowOf(emptyList())
             } else {
@@ -64,9 +68,10 @@ class TodayViewModel @Inject constructor(
     val uiState: StateFlow<TodayUiState> = combine(
         activePlanBundle,
         scheduledExercisesFlow,
-        sessionRepository.observeInProgressSession()
-    ) { bundle, exercises, inProgress ->
-        val todayDay = currentDateProvider.today().dayOfWeek.value
+        sessionRepository.observeInProgressSession(),
+        currentDate
+    ) { bundle, exercises, inProgress, date ->
+        val todayDay = date.dayOfWeek.value
         val templatesById = bundle.templates.associateBy { it.id }
         val scheduleByDay = bundle.schedule.associateBy { it.dayOfWeek }
         val todayTemplateId = scheduleByDay[todayDay]?.workoutTemplateId
@@ -96,6 +101,13 @@ class TodayViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = TodayUiState()
     )
+
+    fun refreshDate() {
+        val latest = currentDateProvider.today()
+        if (currentDate.value != latest) {
+            currentDate.value = latest
+        }
+    }
 
     private var isStartingSession = false
 
