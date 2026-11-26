@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymslut.app.core.preferences.PreferencesRepository
 import com.gymslut.app.core.preferences.ThemeMode
+import com.gymslut.app.core.preferences.WorkoutPreferences
 import com.gymslut.app.data.repository.BackupRepository
 import com.gymslut.app.data.repository.BackupValidationException
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,6 +18,7 @@ import javax.inject.Inject
 
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.DEFAULT,
+    val workoutPreferences: WorkoutPreferences = WorkoutPreferences(),
     val pendingRestoreJson: String? = null,
     val feedbackMessage: String? = null,
     val isError: Boolean = false
@@ -33,11 +35,13 @@ class SettingsViewModel @Inject constructor(
 
     val uiState: StateFlow<SettingsUiState> = combine(
         preferencesRepository.themeMode,
+        preferencesRepository.workoutPreferences,
         pendingRestoreJson,
         feedbackState
-    ) { theme, pendingJson, feedback ->
+    ) { theme, workoutPrefs, pendingJson, feedback ->
         SettingsUiState(
             themeMode = theme,
+            workoutPreferences = workoutPrefs,
             pendingRestoreJson = pendingJson,
             feedbackMessage = feedback.first,
             isError = feedback.second
@@ -51,6 +55,30 @@ class SettingsViewModel @Inject constructor(
     fun selectThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
             preferencesRepository.setThemeMode(mode)
+        }
+    }
+
+    fun setKeepScreenOn(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setKeepScreenOn(enabled)
+        }
+    }
+
+    fun setHapticFeedbackEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setHapticFeedbackEnabled(enabled)
+        }
+    }
+
+    fun setAutoStartRestTimer(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setAutoStartRestTimer(enabled)
+        }
+    }
+
+    fun setRestTimerVibrationEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setRestTimerVibrationEnabled(enabled)
         }
     }
 

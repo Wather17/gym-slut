@@ -2,6 +2,7 @@ package com.gymslut.app.feature.settings
 
 import com.gymslut.app.core.preferences.PreferencesRepository
 import com.gymslut.app.core.preferences.ThemeMode
+import com.gymslut.app.core.preferences.WorkoutPreferences
 import com.gymslut.app.data.model.BackupPayload
 import com.gymslut.app.data.repository.BackupRepository
 import com.gymslut.app.data.repository.BackupValidationException
@@ -55,6 +56,22 @@ class SettingsViewModelTest {
         viewModel.selectThemeMode(ThemeMode.LIGHT)
         advanceUntilIdle()
         assertEquals(ThemeMode.LIGHT, viewModel.uiState.value.themeMode)
+
+        assertEquals(WorkoutPreferences(), viewModel.uiState.value.workoutPreferences)
+        viewModel.setKeepScreenOn(false)
+        viewModel.setHapticFeedbackEnabled(false)
+        viewModel.setAutoStartRestTimer(false)
+        viewModel.setRestTimerVibrationEnabled(false)
+        advanceUntilIdle()
+        assertEquals(
+            WorkoutPreferences(
+                keepScreenOn = false,
+                hapticFeedbackEnabled = false,
+                autoStartRestTimer = false,
+                restTimerVibrationEnabled = false
+            ),
+            viewModel.uiState.value.workoutPreferences
+        )
         job.cancel()
     }
 
@@ -132,9 +149,27 @@ class SettingsViewModelTest {
 
     private class FakePrefsRepo : PreferencesRepository {
         private val flow = MutableStateFlow(ThemeMode.DARK)
+        private val workoutFlow = MutableStateFlow(WorkoutPreferences())
         override val themeMode: Flow<ThemeMode> = flow
+        override val workoutPreferences: Flow<WorkoutPreferences> = workoutFlow
         override suspend fun setThemeMode(mode: ThemeMode) {
             flow.value = mode
+        }
+
+        override suspend fun setKeepScreenOn(enabled: Boolean) {
+            workoutFlow.value = workoutFlow.value.copy(keepScreenOn = enabled)
+        }
+
+        override suspend fun setHapticFeedbackEnabled(enabled: Boolean) {
+            workoutFlow.value = workoutFlow.value.copy(hapticFeedbackEnabled = enabled)
+        }
+
+        override suspend fun setAutoStartRestTimer(enabled: Boolean) {
+            workoutFlow.value = workoutFlow.value.copy(autoStartRestTimer = enabled)
+        }
+
+        override suspend fun setRestTimerVibrationEnabled(enabled: Boolean) {
+            workoutFlow.value = workoutFlow.value.copy(restTimerVibrationEnabled = enabled)
         }
     }
 

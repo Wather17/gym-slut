@@ -24,6 +24,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -157,6 +158,46 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Treino e descanso",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    PreferenceSwitchRow(
+                        title = "Manter tela ligada durante o treino",
+                        subtitle = "Evita que o celular apague no meio da série",
+                        checked = state.workoutPreferences.keepScreenOn,
+                        onCheckedChange = viewModel::setKeepScreenOn
+                    )
+                    PreferenceSwitchRow(
+                        title = "Feedback tátil nas séries",
+                        subtitle = "Vibração leve ao marcar uma série como concluída",
+                        checked = state.workoutPreferences.hapticFeedbackEnabled,
+                        onCheckedChange = viewModel::setHapticFeedbackEnabled
+                    )
+                    PreferenceSwitchRow(
+                        title = "Iniciar descanso automaticamente",
+                        subtitle = "Começa o timer ao marcar uma série como concluída",
+                        checked = state.workoutPreferences.autoStartRestTimer,
+                        onCheckedChange = viewModel::setAutoStartRestTimer
+                    )
+                    PreferenceSwitchRow(
+                        title = "Vibrar ao finalizar o descanso",
+                        subtitle = "Avisa com vibração quando o tempo zerar",
+                        checked = state.workoutPreferences.restTimerVibrationEnabled,
+                        onCheckedChange = viewModel::setRestTimerVibrationEnabled
+                    )
+                }
+            }
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
@@ -237,6 +278,39 @@ fun SettingsScreen(
                     Text("Cancelar")
                 }
             }
+        )
+    }
+}
+
+@Composable
+private fun PreferenceSwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
         )
     }
 }
