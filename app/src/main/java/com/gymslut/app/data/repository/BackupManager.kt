@@ -33,17 +33,18 @@ class RoomBackupRepository @Inject constructor(
     }
 
     override suspend fun exportToJson(exportedAtEpochMs: Long): String {
+        val snapshot = backupDao.readFullSnapshot()
         val payload = BackupPayload(
             schemaVersion = BackupPayload.CURRENT_SCHEMA_VERSION,
             exportedAtEpochMs = exportedAtEpochMs,
-            equipment = backupDao.getAllEquipment().map { it.toBackupDto() },
-            exercises = backupDao.getAllExercises().map { it.toBackupDto() },
-            trainingPlans = backupDao.getAllPlans().map { it.toBackupDto() },
-            workoutTemplates = backupDao.getAllTemplates().map { it.toBackupDto() },
-            workoutExercises = backupDao.getAllWorkoutExercises().map { it.toBackupDto() },
-            weeklySchedule = backupDao.getAllWeeklySchedules().map { it.toBackupDto() },
-            workoutSessions = backupDao.getAllSessions().map { it.toBackupDto() },
-            sessionSets = backupDao.getAllSessionSets().map { it.toBackupDto() }
+            equipment = snapshot.equipment.map { it.toBackupDto() },
+            exercises = snapshot.exercises.map { it.toBackupDto() },
+            trainingPlans = snapshot.plans.map { it.toBackupDto() },
+            workoutTemplates = snapshot.templates.map { it.toBackupDto() },
+            workoutExercises = snapshot.workoutExercises.map { it.toBackupDto() },
+            weeklySchedule = snapshot.weeklySchedule.map { it.toBackupDto() },
+            workoutSessions = snapshot.sessions.map { it.toBackupDto() },
+            sessionSets = snapshot.sessionSets.map { it.toBackupDto() }
         )
         return json.encodeToString(BackupPayload.serializer(), payload)
     }
@@ -74,6 +75,10 @@ class RoomBackupRepository @Inject constructor(
         if (payload.equipment.any { it.name.isBlank() }) {
             throw BackupValidationException("Backup inválido: aparelho sem nome.")
         }
+        val equipmentNames = payload.equipment.map { it.name.trim().lowercase() }.toSet()
+        if (equipmentNames.size != payload.equipment.size) {
+            throw BackupValidationException("Backup inválido: nomes de aparelhos duplicados.")
+        }
 
         val exerciseIds = payload.exercises.map { it.id }.toSet()
         if (exerciseIds.size != payload.exercises.size) {
@@ -87,6 +92,9 @@ class RoomBackupRepository @Inject constructor(
         if (planIds.size != payload.trainingPlans.size) {
             throw BackupValidationException("Backup inválido: IDs de planos duplicados.")
         }
+        if (payload.trainingPlans.any { it.name.isBlank() }) {
+            throw BackupValidationException("Backup inválido: plano sem nome.")
+        }
         if (payload.trainingPlans.count { it.isActive } > 1) {
             throw BackupValidationException("Backup inválido: há mais de um plano ativo.")
         }
@@ -95,9 +103,10 @@ class RoomBackupRepository @Inject constructor(
         if (templateIds.size != payload.workoutTemplates.size) {
             throw BackupValidationException("Backup inválido: IDs de treinos duplicados.")
         }
-        if (payload.workoutTemplates.any { it.planId !in planIds || it.name.isBlank() }) {
-            throw BackupValidationException("Backup inválido: treino vinculado a plano inexistente.")
+        if (payload.workoutTemplates.any { it.planId !in planIds || it.name.isBlank() || it.orderIndex < 0 }) {
+            throw BackupValidationException("Backup inválido: treino vinculado a plano inexistente ou inválido.")
         }
+        val templatePlanById = payload.workoutTemplates.associate { it.id to it.planId }
 
         val workoutExerciseIds = payload.workoutExercises.map { it.id }.toSet()
         if (workoutExerciseIds.size != payload.workoutExercises.size) {
@@ -106,6 +115,7 @@ class RoomBackupRepository @Inject constructor(
         if (payload.workoutExercises.any {
                 it.workoutTemplateId !in templateIds ||
                     it.exerciseId !in exerciseIds ||
+                    it.orderIndex < 0 ||
                     it.targetSets < 1 ||
                     it.targetReps < 1 ||
                     it.restSeconds < 0
@@ -121,7 +131,7 @@ class RoomBackupRepository @Inject constructor(
         if (payload.weeklySchedule.any {
                 it.planId !in planIds ||
                     it.dayOfWeek !in 1..7 ||
-                    (it.workoutTemplateId != null && it.workoutTemplateId !in templateIds)
+                    (it.workoutTemplateId != null && templatePlanById[it.workoutTemplateId] != it.planId)
             }
         ) {
             throw BackupValidationException("Backup inválido: cronograma semanal inconsistente.")
@@ -132,11 +142,14 @@ class RoomBackupRepository @Inject constructor(
             throw BackupValidationException("Backup inválido: IDs de sessões duplicados.")
         }
         if (payload.workoutSessions.any {
-                (it.planId != null && it.planId !in planIds) ||
-                    (it.workoutTemplateId != null && it.workoutTemplateId !in templateIds)
+                it.workoutNameSnapshot.isBlank() ||
+                    (it.finishedAtEpochMs != null && it.finishedAtEpochMs < it.startedAtEpochMs) ||
+                    (it.planId != null && it.planId !in planIds) ||
+                    (it.workoutTemplateId != null && it.workoutTemplateId !in templateIds) ||
+                    (it.planId != null && it.workoutTemplateId != null && templatePlanById[it.workoutTemplateId] != it.planId)
             }
         ) {
-            throw BackupValidationException("Backup inválido: sessão com referência inválida.")
+            throw BackupValidationException("Backup inválido: sessão com referência ou dados inválidos.")
         }
 
         val setIds = payload.sessionSets.map { it.id }.toSet()
@@ -146,6 +159,9 @@ class RoomBackupRepository @Inject constructor(
         if (payload.sessionSets.any {
                 it.sessionId !in sessionIds ||
                     (it.exerciseId != null && it.exerciseId !in exerciseIds) ||
+                    it.exerciseNameSnapshot.isBlank() ||
+                    it.exerciseOrderIndex < 0 ||
+                    it.setNumber < 1 ||
                     it.weightKg < 0.0 ||
                     it.reps < 0
             }
