@@ -31,6 +31,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.gymslut.app.R
 import com.gymslut.app.feature.catalog.CatalogScreen
+import com.gymslut.app.feature.history.ExerciseHistoryScreen
+import com.gymslut.app.feature.history.HistoryScreen
+import com.gymslut.app.feature.history.SessionDetailScreen
 import com.gymslut.app.feature.plans.PlanDetailScreen
 import com.gymslut.app.feature.plans.PlansScreen
 import com.gymslut.app.feature.plans.WorkoutEditorScreen
@@ -58,6 +61,8 @@ fun GymSlutAppShell() {
         AppDestination.PlanDetail.route -> stringResource(R.string.nav_plan_detail)
         AppDestination.WorkoutEditor.route -> stringResource(R.string.nav_workout_editor)
         AppDestination.ActiveWorkout.route -> stringResource(R.string.nav_active_workout)
+        AppDestination.SessionDetail.route -> stringResource(R.string.nav_session_detail)
+        AppDestination.ExerciseHistory.route -> stringResource(R.string.nav_exercise_history)
         else -> stringResource(R.string.app_name)
     }
 
@@ -175,7 +180,31 @@ fun GymSlutAppShell() {
                 CatalogScreen()
             }
             composable(AppDestination.History.route) {
-                PlaceholderScreen(text = stringResource(R.string.placeholder_history))
+                HistoryScreen(
+                    onOpenSessionDetail = { sessionId ->
+                        navController.navigate(AppDestination.SessionDetail.createRoute(sessionId))
+                    },
+                    onOpenExerciseHistory = { exerciseId ->
+                        navController.navigate(AppDestination.ExerciseHistory.createRoute(exerciseId))
+                    }
+                )
+            }
+            composable(
+                route = AppDestination.SessionDetail.route,
+                arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
+            ) {
+                SessionDetailScreen(
+                    onOpenExerciseHistory = { exerciseId ->
+                        navController.navigate(AppDestination.ExerciseHistory.createRoute(exerciseId))
+                    },
+                    onDeleted = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = AppDestination.ExerciseHistory.route,
+                arguments = listOf(navArgument("exerciseId") { type = NavType.LongType })
+            ) {
+                ExerciseHistoryScreen()
             }
             composable(AppDestination.Settings.route) {
                 PlaceholderScreen(text = stringResource(R.string.placeholder_settings))

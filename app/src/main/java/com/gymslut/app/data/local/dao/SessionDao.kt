@@ -4,9 +4,12 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.gymslut.app.data.local.entity.SessionSetEntity
 import com.gymslut.app.data.local.entity.WorkoutSessionEntity
+import com.gymslut.app.data.model.ExerciseHistoryRow
+import com.gymslut.app.data.model.SessionWithSets
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -20,6 +23,31 @@ interface SessionDao {
 
     @Query("SELECT * FROM workout_sessions WHERE finishedAtEpochMs IS NOT NULL ORDER BY startedAtEpochMs DESC")
     fun observeCompletedSessions(): Flow<List<WorkoutSessionEntity>>
+
+    @Transaction
+    @Query("SELECT * FROM workout_sessions WHERE finishedAtEpochMs IS NOT NULL ORDER BY finishedAtEpochMs DESC, startedAtEpochMs DESC")
+    fun observeCompletedSessionsWithSets(): Flow<List<SessionWithSets>>
+
+    @Query(
+        """
+        SELECT ws.id AS sessionId,
+               ws.workoutNameSnapshot AS workoutNameSnapshot,
+               ws.startedAtEpochMs AS startedAtEpochMs,
+               ws.finishedAtEpochMs AS finishedAtEpochMs,
+               ss.exerciseNameSnapshot AS exerciseNameSnapshot,
+               ss.equipmentNameSnapshot AS equipmentNameSnapshot,
+               ss.setNumber AS setNumber,
+               ss.weightKg AS weightKg,
+               ss.reps AS reps,
+               ss.completed AS completed
+        FROM session_sets ss
+        INNER JOIN workout_sessions ws ON ss.sessionId = ws.id
+        WHERE ss.exerciseId = :exerciseId
+          AND ws.finishedAtEpochMs IS NOT NULL
+        ORDER BY ws.finishedAtEpochMs DESC, ss.setNumber ASC, ss.id ASC
+        """
+    )
+    fun observeCompletedExerciseHistory(exerciseId: Long): Flow<List<ExerciseHistoryRow>>
 
     @Query("SELECT * FROM workout_sessions WHERE id = :sessionId")
     suspend fun getSessionById(sessionId: Long): WorkoutSessionEntity?

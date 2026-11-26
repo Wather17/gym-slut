@@ -4,6 +4,8 @@ import com.gymslut.app.data.local.dao.PlanDao
 import com.gymslut.app.data.local.dao.SessionDao
 import com.gymslut.app.data.local.entity.SessionSetEntity
 import com.gymslut.app.data.local.entity.WorkoutSessionEntity
+import com.gymslut.app.data.model.ExerciseHistoryRow
+import com.gymslut.app.data.model.SessionWithSets
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,6 +16,8 @@ import javax.inject.Singleton
 interface SessionRepository {
     fun observeInProgressSession(): Flow<WorkoutSessionEntity?>
     fun observeCompletedSessions(): Flow<List<WorkoutSessionEntity>>
+    fun observeCompletedSessionsWithSets(): Flow<List<SessionWithSets>>
+    fun observeExerciseHistory(exerciseId: Long): Flow<List<ExerciseHistoryRow>>
     fun observeSession(sessionId: Long): Flow<WorkoutSessionEntity?>
     fun observeSetsForSession(sessionId: Long): Flow<List<SessionSetEntity>>
 
@@ -40,6 +44,12 @@ class RoomSessionRepository @Inject constructor(
 
     override fun observeCompletedSessions(): Flow<List<WorkoutSessionEntity>> =
         sessionDao.observeCompletedSessions()
+
+    override fun observeCompletedSessionsWithSets(): Flow<List<SessionWithSets>> =
+        sessionDao.observeCompletedSessionsWithSets()
+
+    override fun observeExerciseHistory(exerciseId: Long): Flow<List<ExerciseHistoryRow>> =
+        sessionDao.observeCompletedExerciseHistory(exerciseId)
 
     override fun observeSession(sessionId: Long): Flow<WorkoutSessionEntity?> =
         sessionDao.observeSessionById(sessionId)
