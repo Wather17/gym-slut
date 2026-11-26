@@ -94,10 +94,20 @@ class TodayViewModelTest {
         advanceUntilIdle()
         assertNotNull(replacedSessionId)
         assertEquals(replacedSessionId, vmWednesday.uiState.value.inProgressSession?.id)
+        // Virada de dia na mesma instância de ViewModel via refreshDate()
+        vmWednesday.refreshDate() // mesmo dia -> no-op
+        advanceUntilIdle()
+        assertEquals(3, vmWednesday.uiState.value.todayDayOfWeek)
+
+        fixedDate = LocalDate.of(2026, 11, 26)
+        vmWednesday.refreshDate()
+        advanceUntilIdle()
+        assertEquals(4, vmWednesday.uiState.value.todayDayOfWeek)
+        assertNull(vmWednesday.uiState.value.scheduledTemplate)
+        assertEquals(0, vmWednesday.uiState.value.scheduledExercises.size)
         job1.cancel()
 
         // Quinta-feira (Descanso)
-        fixedDate = LocalDate.of(2026, 11, 26)
         val vmThursday = TodayViewModel(planRepo, sessionRepo, CurrentDateProvider { fixedDate })
         val job2 = launch { vmThursday.uiState.collect() }
         advanceUntilIdle()

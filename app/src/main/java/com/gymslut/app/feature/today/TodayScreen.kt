@@ -31,8 +31,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gymslut.app.core.time.WeekdayLabels
+import com.gymslut.app.data.local.entity.WorkoutSessionEntity
 import com.gymslut.app.data.local.entity.WorkoutTemplateEntity
 
 @Composable
@@ -44,6 +46,12 @@ fun TodayScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showOtherWorkoutsDialog by remember { mutableStateOf(false) }
     var pendingTemplateToStart by remember { mutableStateOf<WorkoutTemplateEntity?>(null) }
+    var pendingDiscardSession by remember { mutableStateOf<WorkoutSessionEntity?>(null) }
+
+    LifecycleResumeEffect(Unit) {
+        viewModel.refreshDate()
+        onPauseOrDispose {}
+    }
 
     fun handleStartTemplate(template: WorkoutTemplateEntity) {
         val openSession = state.inProgressSession
@@ -171,7 +179,7 @@ fun TodayScreen(
                                 Text("Retomar treino")
                             }
                             TextButton(
-                                onClick = { viewModel.discardInProgressSession(openSession.id) }
+                                onClick = { pendingDiscardSession = openSession }
                             ) {
                                 Text("Descartar")
                             }
@@ -328,6 +336,33 @@ fun TodayScreen(
             },
             dismissButton = {
                 TextButton(onClick = { pendingTemplateToStart = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    pendingDiscardSession?.let { sessionToDiscard ->
+        AlertDialog(
+            onDismissRequest = { pendingDiscardSession = null },
+            title = { Text("Descartar treino") },
+            text = {
+                Text(
+                    "Tem certeza que deseja descartar o treino em andamento \"${sessionToDiscard.workoutNameSnapshot}\"? Os dados registrados nele serão perdidos."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingDiscardSession = null
+                        viewModel.discardInProgressSession(sessionToDiscard.id)
+                    }
+                ) {
+                    Text("Descartar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDiscardSession = null }) {
                     Text("Cancelar")
                 }
             }

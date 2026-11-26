@@ -174,7 +174,8 @@ fun GymSlutAppShell() {
             ) {
                 ActiveWorkoutScreen(
                     onFinished = { navController.popBackStack() },
-                    onDiscarded = { navController.popBackStack() }
+                    onDiscarded = { navController.popBackStack() },
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
             composable(AppDestination.Catalog.route) {
