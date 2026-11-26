@@ -3,7 +3,6 @@ package com.gymslut.app.feature.workout
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gymslut.app.core.notification.RestAlertNotifier
 import com.gymslut.app.core.preferences.PreferencesRepository
 import com.gymslut.app.data.local.entity.SessionSetEntity
 import com.gymslut.app.data.model.WorkoutExerciseDetail
@@ -29,24 +28,13 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val sessionRepository: SessionRepository,
     private val planRepository: PlanRepository,
     private val preferencesRepository: PreferencesRepository,
-    elapsedTimeProvider: ElapsedTimeProvider,
-    private val restAlertNotifier: RestAlertNotifier
+    private val restTimerSessionManager: RestTimerSessionManager
 ) : ViewModel() {
 
     private val sessionId: Long = checkNotNull(savedStateHandle["sessionId"])
-    private val restTimerController = RestTimerController(viewModelScope, elapsedTimeProvider)
     private var isClosingSession = false
 
-    val timerState: StateFlow<RestTimerState> = restTimerController.state
-
-    init {
-        viewModelScope.launch {
-            restTimerController.finishedEvents.collect { exerciseName ->
-                val vibrate = preferencesRepository.workoutPreferences.first().restTimerVibrationEnabled
-                restAlertNotifier.notifyRestFinished(exerciseName, vibrate = vibrate)
-            }
-        }
-    }
+    val timerState: StateFlow<RestTimerState> = restTimerSessionManager.state
 
     private val sessionFlow = sessionRepository.observeSession(sessionId)
 
@@ -120,25 +108,21 @@ class ActiveWorkoutViewModel @Inject constructor(
             sessionRepository.updateSetCompleted(set.id, newCompleted, completedAt)
             val autoStart = preferencesRepository.workoutPreferences.first().autoStartRestTimer
             if (newCompleted && restSeconds > 0 && autoStart) {
-                restTimerController.start(set.exerciseNameSnapshot, restSeconds)
+                restTimerSessionManager.start(set.exerciseNameSnapshot, restSeconds)
             }
         }
     }
 
     fun addTimerSeconds(deltaSeconds: Int) {
-        restTimerController.addSeconds(deltaSeconds)
+        restTimerSessionManager.addSeconds(deltaSeconds)
     }
 
     fun toggleTimerPause() {
-        if (timerState.value.isPaused) {
-            restTimerController.resume()
-        } else {
-            restTimerController.pause()
-        }
+        restTimerSessionManager.togglePause()
     }
 
     fun skipTimer() {
-        restTimerController.skip()
+        restTimerSessionManager.skip()
     }
 
     fun addExtraSet(exerciseOrderIndex: Int) {
@@ -156,8 +140,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     fun finishWorkout(onFinished: () -> Unit) {
         if (isClosingSession) return
         isClosingSession = true
-        restTimerController.cancel()
-        restAlertNotifier.cancelNotification()
+        restTimerSessionManager.cancel()
         viewModelScope.launch {
             try {
                 sessionRepository.finishSession(sessionId)
@@ -171,8 +154,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     fun discardWorkout(onDiscarded: () -> Unit) {
         if (isClosingSession) return
         isClosingSession = true
-        restTimerController.cancel()
-        restAlertNotifier.cancelNotification()
+        restTimerSessionManager.cancel()
         viewModelScope.launch {
             try {
                 sessionRepository.discardSession(sessionId)
@@ -181,11 +163,6 @@ class ActiveWorkoutViewModel @Inject constructor(
                 isClosingSession = false
             }
         }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        restTimerController.cancel()
     }
 
     companion object {

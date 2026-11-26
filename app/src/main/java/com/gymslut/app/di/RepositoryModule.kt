@@ -1,7 +1,9 @@
 package com.gymslut.app.di
 
 import com.gymslut.app.core.notification.AndroidRestTimerNotifier
+import com.gymslut.app.core.notification.AndroidRestTimerServiceController
 import com.gymslut.app.core.notification.RestAlertNotifier
+import com.gymslut.app.core.notification.RestTimerServiceController
 import com.gymslut.app.core.preferences.DataStorePreferencesRepository
 import com.gymslut.app.core.preferences.PreferencesRepository
 import com.gymslut.app.core.time.CurrentDateProvider
@@ -43,6 +45,12 @@ abstract class RepositoryModule {
     abstract fun bindRestAlertNotifier(
         impl: AndroidRestTimerNotifier
     ): RestAlertNotifier
+
+    @Binds
+    @Singleton
+    abstract fun bindRestTimerServiceController(
+        impl: AndroidRestTimerServiceController
+    ): RestTimerServiceController
 
     @Binds
     @Singleton

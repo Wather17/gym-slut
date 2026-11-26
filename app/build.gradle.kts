@@ -110,6 +110,8 @@ kover {
                 classes(
                     "com.gymslut.app.GymSlutApplication",
                     "com.gymslut.app.MainActivity",
+                    "com.gymslut.app.core.notification.RestTimerForegroundService",
+                    "com.gymslut.app.core.notification.RestTimerForegroundService\$*",
                     "*ComposableSingletons*",
                     "*$\$serializer",
                     "*.Hilt_*",

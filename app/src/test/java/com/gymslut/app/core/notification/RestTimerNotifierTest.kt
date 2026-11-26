@@ -5,8 +5,10 @@ import android.app.Application
 import android.app.NotificationManager
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.gymslut.app.feature.workout.RestTimerState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -61,5 +63,38 @@ class RestTimerNotifierTest {
 
         val nm = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         assertEquals(1, shadowOf(nm).allNotifications.size)
+    }
+
+    @Test
+    fun ongoingNotificationBuilderAndServiceController_buildNotificationAndStartStopService() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+
+        val runningNotification = RestTimerOngoingNotificationBuilder.build(
+            app,
+            RestTimerState(isActive = true, exerciseName = "Supino Máquina", remainingSeconds = 75, isPaused = false)
+        )
+        assertNotNull(runningNotification.contentIntent)
+        assertEquals(2, runningNotification.actions.size)
+        assertEquals("01:15", RestTimerOngoingNotificationBuilder.formatCountdown(75))
+        assertEquals("00:00", RestTimerOngoingNotificationBuilder.formatCountdown(-5))
+
+        val pausedNotification = RestTimerOngoingNotificationBuilder.build(
+            app,
+            RestTimerState(isActive = true, exerciseName = "Supino Máquina", remainingSeconds = 30, isPaused = true)
+        )
+        assertNotNull(pausedNotification.contentIntent)
+
+        val nm = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        assertNotNull(nm.getNotificationChannel(RestTimerOngoingNotificationBuilder.ONGOING_CHANNEL_ID))
+
+        val controller = AndroidRestTimerServiceController(app)
+        controller.start()
+        val started = shadowOf(app).nextStartedService
+        assertNotNull(started)
+        assertTrue(started.component?.className?.endsWith("RestTimerForegroundService") == true)
+
+        controller.stop()
+        val stopped = shadowOf(app).nextStoppedService
+        assertNotNull(stopped)
     }
 }
