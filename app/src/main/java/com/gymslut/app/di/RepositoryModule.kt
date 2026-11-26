@@ -8,8 +8,10 @@ import com.gymslut.app.core.time.CurrentDateProvider
 import com.gymslut.app.core.time.SystemCurrentDateProvider
 import com.gymslut.app.feature.workout.ElapsedTimeProvider
 import com.gymslut.app.feature.workout.SystemElapsedTimeProvider
+import com.gymslut.app.data.repository.BackupRepository
 import com.gymslut.app.data.repository.CatalogRepository
 import com.gymslut.app.data.repository.PlanRepository
+import com.gymslut.app.data.repository.RoomBackupRepository
 import com.gymslut.app.data.repository.RoomCatalogRepository
 import com.gymslut.app.data.repository.RoomPlanRepository
 import com.gymslut.app.data.repository.RoomSessionRepository
@@ -65,4 +67,10 @@ abstract class RepositoryModule {
     abstract fun bindSessionRepository(
         impl: RoomSessionRepository
     ): SessionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBackupRepository(
+        impl: RoomBackupRepository
+    ): BackupRepository
 }
