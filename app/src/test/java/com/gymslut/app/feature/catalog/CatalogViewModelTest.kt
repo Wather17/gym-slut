@@ -22,6 +22,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -48,9 +49,17 @@ class CatalogViewModelTest {
     }
 
     @Test
-    fun filters_combineSearchMuscleAndEquipment() = runTest(testDispatcher) {
+    fun filters_combineSearchMuscleEquipmentAndCategoryTabs() = runTest(testDispatcher) {
         val collectJob = launch { viewModel.uiState.collect() }
         advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.hasActiveFilters)
+
+        // Filtro por músculo secundário também encontra o exercício
+        viewModel.selectMuscleFilter(MuscleGroup.TRICEPS)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.hasActiveFilters)
+        assertEquals(1, viewModel.uiState.value.exercises.size)
 
         viewModel.selectMuscleFilter(MuscleGroup.CHEST)
         viewModel.selectEquipmentFilter(1L)
@@ -61,37 +70,95 @@ class CatalogViewModelTest {
         assertEquals(1, state.exercises.size)
         assertEquals("Supino Reto", state.exercises.first().exercise.name)
 
+        // Trocar para aba Aparelhos e filtrar por categoria
+        viewModel.selectTab(CatalogTab.EQUIPMENT)
+        viewModel.selectCategoryFilter(EquipmentCategory.CABLE)
+        viewModel.updateSearchQuery("Polia")
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.hasActiveFilters)
+        assertEquals(1, viewModel.uiState.value.filteredEquipment.size)
+
         viewModel.clearFilters()
         advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.hasActiveFilters)
+        assertEquals(2, viewModel.uiState.value.filteredEquipment.size)
         assertEquals(2, viewModel.uiState.value.exercises.size)
         collectJob.cancel()
     }
 
     @Test
-    fun saveEquipment_validatesEmptyAndDuplicateNames() = runTest(testDispatcher) {
+    fun saveEquipmentAndExercise_validatesCreatesEditsAndClearsMessages() = runTest(testDispatcher) {
         val collectJob = launch { viewModel.uiState.collect() }
         advanceUntilIdle()
 
         var succeeded = false
         viewModel.saveEquipment(null, "   ", EquipmentCategory.MACHINE, "") { succeeded = true }
         advanceUntilIdle()
-        assertEquals(false, succeeded)
+        assertFalse(succeeded)
         assertNotNull(viewModel.uiState.value.formError)
+        viewModel.clearFormError()
+        advanceUntilIdle()
+        assertNull(viewModel.uiState.value.formError)
 
         viewModel.saveEquipment(null, "Supino Reto", EquipmentCategory.BENCH_RACK, "") { succeeded = true }
         advanceUntilIdle()
-        assertEquals(false, succeeded)
+        assertFalse(succeeded)
         assertTrue(viewModel.uiState.value.formError!!.contains("Já existe"))
 
         viewModel.saveEquipment(null, "Hack 45", EquipmentCategory.MACHINE, "Novo") { succeeded = true }
         advanceUntilIdle()
         assertTrue(succeeded)
         assertNull(viewModel.uiState.value.formError)
+        assertTrue(viewModel.uiState.value.feedbackMessage!!.contains("adicionado"))
+
+        // Edição de aparelho
+        val createdEq = viewModel.uiState.value.allEquipment.last()
+        var editedEq = false
+        viewModel.saveEquipment(createdEq.id, "Hack 45 Pro", EquipmentCategory.MACHINE, "Edit") { editedEq = true }
+        advanceUntilIdle()
+        assertTrue(editedEq)
+        assertTrue(viewModel.uiState.value.feedbackMessage!!.contains("atualizado"))
+        viewModel.clearFeedbackMessage()
+        advanceUntilIdle()
+        assertNull(viewModel.uiState.value.feedbackMessage)
+
+        // Validações e CRUD de exercício
+        var exSaved = false
+        viewModel.saveExercise(null, "  ", MuscleGroup.QUADS, null, 1L, "") { exSaved = true }
+        advanceUntilIdle()
+        assertFalse(exSaved)
+        assertNotNull(viewModel.uiState.value.formError)
+
+        viewModel.saveExercise(null, "Hack Squat", MuscleGroup.QUADS, null, null, "") { exSaved = true }
+        advanceUntilIdle()
+        assertFalse(exSaved)
+        assertTrue(viewModel.uiState.value.formError!!.contains("aparelho"))
+
+        viewModel.saveExercise(null, "Hack Squat", MuscleGroup.QUADS, MuscleGroup.GLUTES, createdEq.id, "Descer bem") {
+            exSaved = true
+        }
+        advanceUntilIdle()
+        assertTrue(exSaved)
+
+        val createdEx = viewModel.uiState.value.exercises.first { it.exercise.name == "Hack Squat" }
+        var exEdited = false
+        viewModel.saveExercise(
+            createdEx.exercise.id,
+            "Hack Squat Profundo",
+            MuscleGroup.QUADS,
+            null,
+            createdEq.id,
+            ""
+        ) { exEdited = true }
+        advanceUntilIdle()
+        assertTrue(exEdited)
+        assertTrue(viewModel.uiState.value.exercises.any { it.exercise.name == "Hack Squat Profundo" })
+
         collectJob.cancel()
     }
 
     @Test
-    fun deleteInUseResources_setsFriendlyFeedbackMessage() = runTest(testDispatcher) {
+    fun deleteResources_handlesSuccessAndInUseErrors() = runTest(testDispatcher) {
         val collectJob = launch { viewModel.uiState.collect() }
         advanceUntilIdle()
 
@@ -105,6 +172,17 @@ class CatalogViewModelTest {
         viewModel.deleteExercise(exInUse)
         advanceUntilIdle()
         assertTrue(viewModel.uiState.value.feedbackMessage!!.contains("fichas"))
+
+        // Exclusão bem-sucedida quando não está em uso
+        val freeEx = viewModel.uiState.value.exercises.last()
+        viewModel.deleteExercise(freeEx)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.feedbackMessage!!.contains("excluído"))
+
+        val freeEq = viewModel.uiState.value.allEquipment.last()
+        viewModel.deleteEquipment(freeEq)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.feedbackMessage!!.contains("excluído"))
 
         collectJob.cancel()
     }

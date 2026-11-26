@@ -3,8 +3,6 @@ package com.gymslut.app.feature.workout
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -17,55 +15,73 @@ import org.junit.Test
 class RestTimerControllerTest {
 
     @Test
-    fun startWithZeroSeconds_doesNotActivateTimer() = runTest {
-        var nowMs = 1_000L
+    fun startWithZeroOrNegativeSeconds_doesNotActivateAndNoOpsWhenInactive() = runTest {
+        val nowMs = 1_000L
         val controller = RestTimerController(backgroundScope, ElapsedTimeProvider { nowMs })
 
         controller.start("Supino", 0)
         assertFalse(controller.state.value.isActive)
+        controller.start("Supino", -10)
+        assertFalse(controller.state.value.isActive)
+
+        // No-ops quando inativo
+        controller.addSeconds(15)
+        controller.pause()
+        controller.resume()
+        controller.skip()
+        controller.syncRemaining()
+        assertFalse(controller.state.value.isActive)
     }
 
     @Test
-    fun addSubtractPauseResumeAndSkip_updatesStateCorrectly() = runTest {
+    fun pausedAdjustmentsReplaceAndPauseAlreadyExpired_handleEdgeCases() = runTest {
         var nowMs = 1_000L
-        val dispatcher = StandardTestDispatcher(testScheduler)
-        val scope = TestScope(dispatcher)
-        val controller = RestTimerController(scope.backgroundScope, ElapsedTimeProvider { nowMs })
+        val controller = RestTimerController(backgroundScope, ElapsedTimeProvider { nowMs })
 
         val finished = mutableListOf<String>()
-        val collectJob = scope.backgroundScope.launch {
+        val collectJob = backgroundScope.launch {
             controller.finishedEvents.collect { finished += it }
         }
+        runCurrent()
 
         controller.start("Supino Reto", 30)
         assertTrue(controller.state.value.isActive)
         assertEquals(30, controller.state.value.remainingSeconds)
 
-        controller.addSeconds(15)
-        assertEquals(45, controller.state.value.remainingSeconds)
-
-        controller.addSeconds(-15)
-        assertEquals(30, controller.state.value.remainingSeconds)
+        // Substituir timer ativo
+        controller.start("Remada Curvada", 20)
+        assertEquals("Remada Curvada", controller.state.value.exerciseName)
+        assertEquals(20, controller.state.value.remainingSeconds)
 
         controller.pause()
+        controller.pause() // idempotente quando já pausado
         assertTrue(controller.state.value.isPaused)
-        nowMs += 20_000L
-        controller.syncRemaining()
-        assertEquals(30, controller.state.value.remainingSeconds)
 
-        controller.resume()
-        assertFalse(controller.state.value.isPaused)
-
-        // Pular não deve disparar evento de fim
-        controller.skip()
-        assertFalse(controller.state.value.isActive)
-        assertTrue(finished.isEmpty())
-
-        // -15s até zerar encerra sem negativo
-        controller.start("Agachamento", 10)
+        // Ajustar segundos enquanto pausado
+        controller.addSeconds(15)
+        assertEquals(35, controller.state.value.remainingSeconds)
         controller.addSeconds(-15)
+        assertEquals(20, controller.state.value.remainingSeconds)
+
+        // Subtrair até <= 0 enquanto pausado encerra sem disparar alerta
+        controller.addSeconds(-30)
         assertFalse(controller.state.value.isActive)
         assertTrue(finished.isEmpty())
+
+        // Pausar quando o relógio já ultrapassou o tempo alvo emite finishedEvents
+        controller.start("Agachamento", 5)
+        nowMs += 6_000L
+        controller.pause()
+        runCurrent()
+        assertFalse(controller.state.value.isActive)
+        assertEquals(listOf("Agachamento"), finished)
+
+        // Cancelar limpa estado sem emitir evento
+        controller.start("Panturrilha", 15)
+        controller.resume() // idempotente quando já rodando
+        controller.cancel()
+        assertFalse(controller.state.value.isActive)
+        assertEquals(1, finished.size)
 
         collectJob.cancel()
     }

@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
+    alias(libs.plugins.kover)
 }
 
 val releaseVersionName: String =
@@ -88,6 +89,42 @@ android {
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+kover {
+    reports {
+        filters {
+            excludes {
+                androidGeneratedClasses()
+                annotatedBy("androidx.compose.runtime.Composable")
+                packages(
+                    "com.gymslut.app.di",
+                    "com.gymslut.app.core.designsystem",
+                    "hilt_aggregated_deps",
+                    "dagger.hilt.internal"
+                )
+                classes(
+                    "com.gymslut.app.GymSlutApplication",
+                    "com.gymslut.app.MainActivity",
+                    "*ComposableSingletons*",
+                    "*$\$serializer",
+                    "*.Hilt_*",
+                    "*_HiltModules*",
+                    "*_Factory*",
+                    "*_MembersInjector*",
+                    "*_GeneratedInjector",
+                    "*_Impl",
+                    "*_Impl\$*"
+                )
+            }
+        }
+
+        verify {
+            rule {
+                minBound(90)
+            }
+        }
+    }
 }
 
 dependencies {
