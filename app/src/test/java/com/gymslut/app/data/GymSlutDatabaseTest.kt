@@ -56,18 +56,33 @@ class GymSlutDatabaseTest {
     @Test
     fun catalogSeed_populatesExpectedCountsAndIsIdempotent() = runTest {
         CatalogSeedData.seedIfNeeded(db.equipmentDao(), db.exerciseDao())
-        val firstEquipmentCount = db.equipmentDao().getAll().size
-        val firstExerciseCount = db.exerciseDao().getAll().size
+        val equipmentList = db.equipmentDao().getAll()
+        val exerciseList = db.exerciseDao().getAll()
 
-        assertTrue(firstEquipmentCount >= 18)
-        assertTrue(firstExerciseCount >= 45)
+        assertEquals(CatalogSeedData.defaultEquipment.size, equipmentList.size)
+        assertEquals(CatalogSeedData.defaultExercises.size, exerciseList.size)
 
-        val muscles = db.exerciseDao().getAll().map { it.primaryMuscle }.toSet()
+        val equipmentNames = equipmentList.map { it.name }.toSet()
+        val guidedMachines = listOf(
+            "Supino Máquina",
+            "Supino Inclinado Máquina",
+            "Desenvolvimento Máquina",
+            "Elevação Lateral Máquina",
+            "Remada Máquina",
+            "Crucifixo Inverso Máquina",
+            "Tríceps Máquina",
+            "Leg Press Horizontal",
+            "Abdominal Máquina",
+            "Esteira"
+        )
+        assertTrue(equipmentNames.containsAll(guidedMachines))
+
+        val muscles = exerciseList.map { it.primaryMuscle }.toSet()
         assertTrue(muscles.containsAll(MuscleGroup.entries))
 
         CatalogSeedData.seedIfNeeded(db.equipmentDao(), db.exerciseDao())
-        assertEquals(firstEquipmentCount, db.equipmentDao().getAll().size)
-        assertEquals(firstExerciseCount, db.exerciseDao().getAll().size)
+        assertEquals(equipmentList.size, db.equipmentDao().getAll().size)
+        assertEquals(exerciseList.size, db.exerciseDao().getAll().size)
     }
 
     @Test
