@@ -21,6 +21,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Provider
 import javax.inject.Singleton
 
@@ -30,6 +32,8 @@ object DatabaseModule {
 
     private const val SEED_PREFS_NAME = "gym_slut_seed_prefs"
     private const val KEY_CATALOG_SEED_VERSION = "catalog_seed_version"
+    private val seedMutex = Mutex()
+    private val seedScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @Provides
     @Singleton
@@ -47,17 +51,24 @@ object DatabaseModule {
                     override fun onOpen(db: SupportSQLiteDatabase) {
                         super.onOpen(db)
                         val prefs = context.getSharedPreferences(SEED_PREFS_NAME, Context.MODE_PRIVATE)
-                        val appliedVersion = prefs.getInt(KEY_CATALOG_SEED_VERSION, 0)
-                        if (appliedVersion < CatalogSeedData.SEED_VERSION) {
-                            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                                val database = databaseProvider.get()
-                                CatalogSeedData.seedIfNeeded(
-                                    equipmentDao = database.equipmentDao(),
-                                    exerciseDao = database.exerciseDao()
-                                )
-                                prefs.edit()
-                                    .putInt(KEY_CATALOG_SEED_VERSION, CatalogSeedData.SEED_VERSION)
-                                    .apply()
+                        if (prefs.getInt(KEY_CATALOG_SEED_VERSION, 0) < CatalogSeedData.SEED_VERSION) {
+                            seedScope.launch {
+                                seedMutex.withLock {
+                                    val appliedVersion = prefs.getInt(KEY_CATALOG_SEED_VERSION, 0)
+                                    if (appliedVersion >= CatalogSeedData.SEED_VERSION) return@withLock
+                                    runCatching {
+                                        val database = databaseProvider.get()
+                                        CatalogSeedData.seedIfNeeded(
+                                            equipmentDao = database.equipmentDao(),
+                                            exerciseDao = database.exerciseDao(),
+                                            fromVersion = appliedVersion
+                                        )
+                                    }.onSuccess {
+                                        prefs.edit()
+                                            .putInt(KEY_CATALOG_SEED_VERSION, CatalogSeedData.SEED_VERSION)
+                                            .apply()
+                                    }
+                                }
                             }
                         }
                     }
