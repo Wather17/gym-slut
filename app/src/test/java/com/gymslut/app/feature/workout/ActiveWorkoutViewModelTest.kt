@@ -1,6 +1,7 @@
 package com.gymslut.app.feature.workout
 
 import androidx.lifecycle.SavedStateHandle
+import com.gymslut.app.core.notification.RestAlertNotifier
 import com.gymslut.app.data.local.entity.SessionSetEntity
 import com.gymslut.app.data.local.entity.TrainingPlanEntity
 import com.gymslut.app.data.local.entity.WeeklyScheduleEntity
@@ -20,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -36,12 +38,15 @@ class ActiveWorkoutViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var sessionRepo: FakeWorkoutSessionRepository
     private lateinit var planRepo: FakeWorkoutPlanRepository
+    private lateinit var notifier: FakeRestNotifier
+    private var nowMs = 1_000L
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         sessionRepo = FakeWorkoutSessionRepository()
         planRepo = FakeWorkoutPlanRepository()
+        notifier = FakeRestNotifier()
     }
 
     @After
@@ -51,7 +56,13 @@ class ActiveWorkoutViewModelTest {
 
     @Test
     fun editWeightRepsToggleAddRemoveAndFinish_updatesSessionCorrectly() = runTest(testDispatcher) {
-        val vm = ActiveWorkoutViewModel(SavedStateHandle(mapOf("sessionId" to 1L)), sessionRepo, planRepo)
+        val vm = ActiveWorkoutViewModel(
+            SavedStateHandle(mapOf("sessionId" to 1L)),
+            sessionRepo,
+            planRepo,
+            ElapsedTimeProvider { nowMs },
+            notifier
+        )
         val job = launch { vm.uiState.collect() }
         advanceUntilIdle()
 
@@ -70,34 +81,52 @@ class ActiveWorkoutViewModelTest {
         assertEquals(12, vm.uiState.value.exerciseGroups.first().sets.first().reps)
 
         vm.toggleSetCompleted(vm.uiState.value.exerciseGroups.first().sets.first(), group.restSeconds)
-        advanceUntilIdle()
+        runCurrent()
         assertEquals(1, vm.uiState.value.completedSetsCount)
+        assertTrue(vm.timerState.value.isActive)
+        assertEquals(90, vm.timerState.value.remainingSeconds)
 
         vm.addExtraSet(0)
-        advanceUntilIdle()
+        runCurrent()
         assertEquals(3, vm.uiState.value.totalSetsCount)
 
         val extraSetId = vm.uiState.value.exerciseGroups.first().sets.last().id
         vm.removeSet(extraSetId)
-        advanceUntilIdle()
+        runCurrent()
         assertEquals(2, vm.uiState.value.totalSetsCount)
 
         var finished = false
         vm.finishWorkout { finished = true }
         advanceUntilIdle()
         assertTrue(finished)
+        assertEquals(false, vm.timerState.value.isActive)
         assertNotNull(sessionRepo.sessionFlow.value?.finishedAtEpochMs)
         job.cancel()
     }
 
     @Test
     fun discardWorkout_removesSession() = runTest(testDispatcher) {
-        val vm = ActiveWorkoutViewModel(SavedStateHandle(mapOf("sessionId" to 1L)), sessionRepo, planRepo)
+        val vm = ActiveWorkoutViewModel(
+            SavedStateHandle(mapOf("sessionId" to 1L)),
+            sessionRepo,
+            planRepo,
+            ElapsedTimeProvider { nowMs },
+            notifier
+        )
         var discarded = false
         vm.discardWorkout { discarded = true }
         advanceUntilIdle()
         assertTrue(discarded)
         assertNull(sessionRepo.sessionFlow.value)
+    }
+
+    private class FakeRestNotifier : RestAlertNotifier {
+        val notified = mutableListOf<String>()
+        override fun notifyRestFinished(exerciseName: String) {
+            notified += exerciseName
+        }
+
+        override fun cancelNotification() = Unit
     }
 
     private class FakeWorkoutSessionRepository : SessionRepository {
