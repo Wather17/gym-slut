@@ -29,5 +29,27 @@ class DataStorePreferencesRepositoryTest {
 
         repo.setThemeMode(ThemeMode.DARK)
         assertEquals(ThemeMode.DARK, repo.themeMode.first())
+
+        assertEquals(WorkoutPreferences(), repo.workoutPreferences.first())
+
+        repo.setKeepScreenOn(false)
+        repo.setHapticFeedbackEnabled(false)
+        repo.setAutoStartRestTimer(false)
+        repo.setRestTimerVibrationEnabled(false)
+        assertEquals(
+            WorkoutPreferences(
+                keepScreenOn = false,
+                hapticFeedbackEnabled = false,
+                autoStartRestTimer = false,
+                restTimerVibrationEnabled = false
+            ),
+            repo.workoutPreferences.first()
+        )
+
+        repo.setKeepScreenOn(true)
+        repo.setHapticFeedbackEnabled(true)
+        repo.setAutoStartRestTimer(true)
+        repo.setRestTimerVibrationEnabled(true)
+        assertEquals(WorkoutPreferences(), repo.workoutPreferences.first())
     }
 }

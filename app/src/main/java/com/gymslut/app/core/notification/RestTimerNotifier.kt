@@ -24,7 +24,7 @@ import javax.inject.Singleton
  * Contrato para disparar alertas de fim de descanso (testável em JVM).
  */
 interface RestAlertNotifier {
-    fun notifyRestFinished(exerciseName: String)
+    fun notifyRestFinished(exerciseName: String, vibrate: Boolean = true)
     fun cancelNotification()
 }
 
@@ -33,8 +33,10 @@ class AndroidRestTimerNotifier @Inject constructor(
     @ApplicationContext private val context: Context
 ) : RestAlertNotifier {
 
-    override fun notifyRestFinished(exerciseName: String) {
-        vibrate()
+    override fun notifyRestFinished(exerciseName: String, vibrate: Boolean) {
+        if (vibrate) {
+            vibrate()
+        }
         sendNotificationIfPermitted(exerciseName)
     }
 

@@ -43,8 +43,8 @@ class RestTimerNotifierTest {
         assertEquals(1, shadowOf(nm).allNotifications.size)
         assertNotNull(shadowOf(nm).allNotifications.first().contentIntent)
 
-        // Chamar segunda vez reutiliza canal existente sem duplicar erro
-        notifier.notifyRestFinished("Leg Press")
+        // Chamar segunda vez reutiliza canal existente sem duplicar erro (também com vibrate = false)
+        notifier.notifyRestFinished("Leg Press", vibrate = false)
         assertEquals(1, shadowOf(nm).allNotifications.size)
 
         notifier.cancelNotification()

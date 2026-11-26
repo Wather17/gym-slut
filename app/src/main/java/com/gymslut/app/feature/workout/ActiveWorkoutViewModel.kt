@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymslut.app.core.notification.RestAlertNotifier
+import com.gymslut.app.core.preferences.PreferencesRepository
 import com.gymslut.app.data.local.entity.SessionSetEntity
 import com.gymslut.app.data.model.WorkoutExerciseDetail
 import com.gymslut.app.data.repository.PlanRepository
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
@@ -26,6 +28,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val sessionRepository: SessionRepository,
     private val planRepository: PlanRepository,
+    private val preferencesRepository: PreferencesRepository,
     elapsedTimeProvider: ElapsedTimeProvider,
     private val restAlertNotifier: RestAlertNotifier
 ) : ViewModel() {
@@ -39,7 +42,8 @@ class ActiveWorkoutViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             restTimerController.finishedEvents.collect { exerciseName ->
-                restAlertNotifier.notifyRestFinished(exerciseName)
+                val vibrate = preferencesRepository.workoutPreferences.first().restTimerVibrationEnabled
+                restAlertNotifier.notifyRestFinished(exerciseName, vibrate = vibrate)
             }
         }
     }
@@ -59,8 +63,9 @@ class ActiveWorkoutViewModel @Inject constructor(
     val uiState: StateFlow<ActiveWorkoutUiState> = combine(
         sessionFlow,
         sessionRepository.observeSetsForSession(sessionId),
-        templateExercisesFlow
-    ) { session, sets, templateDetails ->
+        templateExercisesFlow,
+        preferencesRepository.workoutPreferences
+    ) { session, sets, templateDetails, workoutPrefs ->
         val restByExerciseId = templateDetails.associate { it.exerciseId to it.restSeconds }
 
         val groups = sets
@@ -85,7 +90,8 @@ class ActiveWorkoutViewModel @Inject constructor(
 
         ActiveWorkoutUiState(
             session = session,
-            exerciseGroups = groups
+            exerciseGroups = groups,
+            workoutPreferences = workoutPrefs
         )
     }.stateIn(
         scope = viewModelScope,
@@ -112,7 +118,8 @@ class ActiveWorkoutViewModel @Inject constructor(
         val completedAt = if (newCompleted) System.currentTimeMillis() else null
         viewModelScope.launch {
             sessionRepository.updateSetCompleted(set.id, newCompleted, completedAt)
-            if (newCompleted && restSeconds > 0) {
+            val autoStart = preferencesRepository.workoutPreferences.first().autoStartRestTimer
+            if (newCompleted && restSeconds > 0 && autoStart) {
                 restTimerController.start(set.exerciseNameSnapshot, restSeconds)
             }
         }

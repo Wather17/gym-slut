@@ -2,6 +2,9 @@ package com.gymslut.app.feature.workout
 
 import androidx.lifecycle.SavedStateHandle
 import com.gymslut.app.core.notification.RestAlertNotifier
+import com.gymslut.app.core.preferences.PreferencesRepository
+import com.gymslut.app.core.preferences.ThemeMode
+import com.gymslut.app.core.preferences.WorkoutPreferences
 import com.gymslut.app.data.local.entity.SessionSetEntity
 import com.gymslut.app.data.local.entity.TrainingPlanEntity
 import com.gymslut.app.data.local.entity.WeeklyScheduleEntity
@@ -41,6 +44,7 @@ class ActiveWorkoutViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var sessionRepo: FakeWorkoutSessionRepository
     private lateinit var planRepo: FakeWorkoutPlanRepository
+    private lateinit var prefsRepo: FakeWorkoutPreferencesRepository
     private lateinit var notifier: FakeRestNotifier
     private var nowMs = 1_000L
 
@@ -49,6 +53,7 @@ class ActiveWorkoutViewModelTest {
         Dispatchers.setMain(testDispatcher)
         sessionRepo = FakeWorkoutSessionRepository()
         planRepo = FakeWorkoutPlanRepository()
+        prefsRepo = FakeWorkoutPreferencesRepository()
         notifier = FakeRestNotifier()
     }
 
@@ -74,6 +79,7 @@ class ActiveWorkoutViewModelTest {
             SavedStateHandle(mapOf("sessionId" to 1L)),
             sessionRepo,
             planRepo,
+            prefsRepo,
             ElapsedTimeProvider { nowMs },
             notifier
         )
@@ -169,6 +175,7 @@ class ActiveWorkoutViewModelTest {
             SavedStateHandle(mapOf("sessionId" to 1L)),
             sessionRepo,
             planRepo,
+            prefsRepo,
             ElapsedTimeProvider { nowMs },
             notifier
         )
@@ -202,6 +209,7 @@ class ActiveWorkoutViewModelTest {
             SavedStateHandle(mapOf("sessionId" to 1L)),
             sessionRepo,
             planRepo,
+            prefsRepo,
             ElapsedTimeProvider { nowMs },
             notifier
         )
@@ -235,13 +243,70 @@ class ActiveWorkoutViewModelTest {
         job.cancel()
     }
 
+    @Test
+    fun workoutPreferencesDisabled_skipsAutoStartAndDisablesRestVibration() = runTest(testDispatcher) {
+        prefsRepo.setAutoStartRestTimer(false)
+        prefsRepo.setRestTimerVibrationEnabled(false)
+        val vm = ActiveWorkoutViewModel(
+            SavedStateHandle(mapOf("sessionId" to 1L)),
+            sessionRepo,
+            planRepo,
+            prefsRepo,
+            ElapsedTimeProvider { nowMs },
+            notifier
+        )
+        val job = launch { vm.uiState.collect() }
+        advanceUntilIdle()
+
+        val firstSet = vm.uiState.value.exerciseGroups.first().sets.first()
+        vm.toggleSetCompleted(firstSet, 90)
+        runCurrent()
+        assertTrue(vm.uiState.value.exerciseGroups.first().sets.first().completed)
+        assertFalse(vm.timerState.value.isActive)
+
+        // Reabilita autoStart com vibração desligada -> alerta chega com vibrate=false
+        prefsRepo.setAutoStartRestTimer(true)
+        vm.toggleSetCompleted(vm.uiState.value.exerciseGroups.first().sets[1], 2)
+        runCurrent()
+        assertTrue(vm.timerState.value.isActive)
+        nowMs += 2_000L
+        advanceTimeBy(2_500L)
+        runCurrent()
+        assertEquals(listOf("Supino Reto" to false), notifier.notifiedWithVibrate)
+        job.cancel()
+    }
+
     private class FakeRestNotifier : RestAlertNotifier {
         val notified = mutableListOf<String>()
-        override fun notifyRestFinished(exerciseName: String) {
+        val notifiedWithVibrate = mutableListOf<Pair<String, Boolean>>()
+        override fun notifyRestFinished(exerciseName: String, vibrate: Boolean) {
             notified += exerciseName
+            notifiedWithVibrate += exerciseName to vibrate
         }
 
         override fun cancelNotification() = Unit
+    }
+
+    private class FakeWorkoutPreferencesRepository : PreferencesRepository {
+        private val workoutFlow = MutableStateFlow(WorkoutPreferences())
+        override val themeMode: Flow<ThemeMode> = flowOf(ThemeMode.DARK)
+        override val workoutPreferences: Flow<WorkoutPreferences> = workoutFlow
+        override suspend fun setThemeMode(mode: ThemeMode) = Unit
+        override suspend fun setKeepScreenOn(enabled: Boolean) {
+            workoutFlow.value = workoutFlow.value.copy(keepScreenOn = enabled)
+        }
+
+        override suspend fun setHapticFeedbackEnabled(enabled: Boolean) {
+            workoutFlow.value = workoutFlow.value.copy(hapticFeedbackEnabled = enabled)
+        }
+
+        override suspend fun setAutoStartRestTimer(enabled: Boolean) {
+            workoutFlow.value = workoutFlow.value.copy(autoStartRestTimer = enabled)
+        }
+
+        override suspend fun setRestTimerVibrationEnabled(enabled: Boolean) {
+            workoutFlow.value = workoutFlow.value.copy(restTimerVibrationEnabled = enabled)
+        }
     }
 
     private class FakeWorkoutSessionRepository : SessionRepository {
