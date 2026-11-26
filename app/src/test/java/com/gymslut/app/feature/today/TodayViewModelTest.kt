@@ -109,6 +109,19 @@ class TodayViewModelTest {
         vmThursday.discardInProgressSession(replacedSessionId!!)
         advanceUntilIdle()
         assertNull(vmThursday.uiState.value.inProgressSession)
+
+        // Duplo clique em startWorkout cria apenas uma sessão; erro de template inexistente não gera crash
+        val startedIds = mutableListOf<Long>()
+        vmThursday.startWorkout(treinoA) { startedIds += it }
+        vmThursday.startWorkout(treinoA) { startedIds += it }
+        advanceUntilIdle()
+        assertEquals(1, startedIds.size)
+
+        sessionRepo.failOnStart = true
+        vmThursday.startWorkout(999L) { startedIds += it }
+        vmThursday.discardAndStartWorkout(startedIds.first(), 999L) { startedIds += it }
+        advanceUntilIdle()
+        assertEquals(1, startedIds.size)
         job2.cancel()
     }
 
@@ -182,6 +195,7 @@ class TodayViewModelTest {
     private class FakeTodaySessionRepository : SessionRepository {
         private val inProgress = MutableStateFlow<WorkoutSessionEntity?>(null)
         private var nextSessionId = 1L
+        var failOnStart = false
 
         override fun observeInProgressSession(): Flow<WorkoutSessionEntity?> = inProgress
         override fun observeCompletedSessions(): Flow<List<WorkoutSessionEntity>> = flowOf(emptyList())
@@ -191,12 +205,16 @@ class TodayViewModelTest {
         override fun observeSetsForSession(sessionId: Long): Flow<List<SessionSetEntity>> = flowOf(emptyList())
 
         override suspend fun startWorkoutSession(workoutTemplateId: Long, startedAtEpochMs: Long): Long {
+            if (failOnStart) throw IllegalArgumentException("Treino não encontrado.")
             val id = nextSessionId++
             inProgress.value = WorkoutSessionEntity(id, 1L, workoutTemplateId, "Treino", startedAtEpochMs, null)
             return id
         }
 
         override suspend fun updateSet(set: SessionSetEntity) = Unit
+        override suspend fun updateSetWeight(setId: Long, weightKg: Double) = Unit
+        override suspend fun updateSetReps(setId: Long, reps: Int) = Unit
+        override suspend fun updateSetCompleted(setId: Long, completed: Boolean, completedAtEpochMs: Long?) = Unit
         override suspend fun addExtraSet(sessionId: Long, exerciseOrderIndex: Int) = 0L
         override suspend fun removeSet(setId: Long) = Unit
         override suspend fun finishSession(sessionId: Long, finishedAtEpochMs: Long) {

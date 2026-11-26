@@ -87,6 +87,18 @@ interface SessionDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertSession(session: WorkoutSessionEntity): Long
 
+    @Transaction
+    suspend fun insertSessionWithSets(
+        session: WorkoutSessionEntity,
+        sets: List<SessionSetEntity>
+    ): Long {
+        val sessionId = insertSession(session)
+        if (sets.isNotEmpty()) {
+            insertSets(sets.map { it.copy(sessionId = sessionId) })
+        }
+        return sessionId
+    }
+
     @Update
     suspend fun updateSession(session: WorkoutSessionEntity)
 
@@ -101,6 +113,15 @@ interface SessionDao {
 
     @Update
     suspend fun updateSet(set: SessionSetEntity)
+
+    @Query("UPDATE session_sets SET weightKg = :weightKg WHERE id = :setId")
+    suspend fun updateSetWeight(setId: Long, weightKg: Double)
+
+    @Query("UPDATE session_sets SET reps = :reps WHERE id = :setId")
+    suspend fun updateSetReps(setId: Long, reps: Int)
+
+    @Query("UPDATE session_sets SET completed = :completed, completedAtEpochMs = :completedAtEpochMs WHERE id = :setId")
+    suspend fun updateSetCompleted(setId: Long, completed: Boolean, completedAtEpochMs: Long?)
 
     @Query("DELETE FROM session_sets WHERE id = :setId")
     suspend fun deleteSetById(setId: Long)

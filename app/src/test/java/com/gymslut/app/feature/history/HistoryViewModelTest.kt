@@ -155,6 +155,9 @@ class HistoryViewModelTest {
 
         override suspend fun startWorkoutSession(workoutTemplateId: Long, startedAtEpochMs: Long) = 0L
         override suspend fun updateSet(set: SessionSetEntity) = Unit
+        override suspend fun updateSetWeight(setId: Long, weightKg: Double) = Unit
+        override suspend fun updateSetReps(setId: Long, reps: Int) = Unit
+        override suspend fun updateSetCompleted(setId: Long, completed: Boolean, completedAtEpochMs: Long?) = Unit
         override suspend fun addExtraSet(sessionId: Long, exerciseOrderIndex: Int) = 0L
         override suspend fun removeSet(setId: Long) = Unit
         override suspend fun finishSession(sessionId: Long, finishedAtEpochMs: Long) = Unit

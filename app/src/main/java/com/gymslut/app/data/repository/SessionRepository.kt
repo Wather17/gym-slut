@@ -27,6 +27,9 @@ interface SessionRepository {
     ): Long
 
     suspend fun updateSet(set: SessionSetEntity)
+    suspend fun updateSetWeight(setId: Long, weightKg: Double)
+    suspend fun updateSetReps(setId: Long, reps: Int)
+    suspend fun updateSetCompleted(setId: Long, completed: Boolean, completedAtEpochMs: Long?)
     suspend fun addExtraSet(sessionId: Long, exerciseOrderIndex: Int): Long
     suspend fun removeSet(setId: Long)
     suspend fun finishSession(sessionId: Long, finishedAtEpochMs: Long = System.currentTimeMillis())
@@ -65,16 +68,6 @@ class RoomSessionRepository @Inject constructor(
             ?: throw IllegalArgumentException("Treino não encontrado.")
         val exercises = planDao.getWorkoutExercisesWithDetails(workoutTemplateId)
 
-        val sessionId = sessionDao.insertSession(
-            WorkoutSessionEntity(
-                planId = template.planId,
-                workoutTemplateId = template.id,
-                workoutNameSnapshot = template.name,
-                startedAtEpochMs = startedAtEpochMs,
-                finishedAtEpochMs = null
-            )
-        )
-
         val setsToInsert = mutableListOf<SessionSetEntity>()
         exercises.forEachIndexed { orderIndex, detail ->
             val previousSets = sessionDao.getLatestCompletedSetsForExercise(detail.exerciseId)
@@ -83,7 +76,7 @@ class RoomSessionRepository @Inject constructor(
             for (setNumber in 1..detail.targetSets) {
                 val suggested = previousSets.firstOrNull { it.setNumber == setNumber } ?: fallbackLastSet
                 setsToInsert += SessionSetEntity(
-                    sessionId = sessionId,
+                    sessionId = 0L,
                     exerciseId = detail.exerciseId,
                     exerciseNameSnapshot = detail.exerciseName,
                     equipmentNameSnapshot = detail.equipmentName,
@@ -97,14 +90,36 @@ class RoomSessionRepository @Inject constructor(
             }
         }
 
-        if (setsToInsert.isNotEmpty()) {
-            sessionDao.insertSets(setsToInsert)
-        }
-        return sessionId
+        return sessionDao.insertSessionWithSets(
+            session = WorkoutSessionEntity(
+                planId = template.planId,
+                workoutTemplateId = template.id,
+                workoutNameSnapshot = template.name,
+                startedAtEpochMs = startedAtEpochMs,
+                finishedAtEpochMs = null
+            ),
+            sets = setsToInsert
+        )
     }
 
     override suspend fun updateSet(set: SessionSetEntity) {
         sessionDao.updateSet(set)
+    }
+
+    override suspend fun updateSetWeight(setId: Long, weightKg: Double) {
+        sessionDao.updateSetWeight(setId, weightKg)
+    }
+
+    override suspend fun updateSetReps(setId: Long, reps: Int) {
+        sessionDao.updateSetReps(setId, reps)
+    }
+
+    override suspend fun updateSetCompleted(
+        setId: Long,
+        completed: Boolean,
+        completedAtEpochMs: Long?
+    ) {
+        sessionDao.updateSetCompleted(setId, completed, completedAtEpochMs)
     }
 
     override suspend fun addExtraSet(sessionId: Long, exerciseOrderIndex: Int): Long {

@@ -97,10 +97,20 @@ class TodayViewModel @Inject constructor(
         initialValue = TodayUiState()
     )
 
+    private var isStartingSession = false
+
     fun startWorkout(workoutTemplateId: Long, onSessionStarted: (Long) -> Unit) {
+        if (isStartingSession) return
+        isStartingSession = true
         viewModelScope.launch {
-            val sessionId = sessionRepository.startWorkoutSession(workoutTemplateId)
-            onSessionStarted(sessionId)
+            try {
+                val sessionId = sessionRepository.startWorkoutSession(workoutTemplateId)
+                onSessionStarted(sessionId)
+            } catch (_: IllegalArgumentException) {
+                // Template pode ter sido removido antes do clique
+            } finally {
+                isStartingSession = false
+            }
         }
     }
 
@@ -109,10 +119,18 @@ class TodayViewModel @Inject constructor(
         newWorkoutTemplateId: Long,
         onSessionStarted: (Long) -> Unit
     ) {
+        if (isStartingSession) return
+        isStartingSession = true
         viewModelScope.launch {
-            sessionRepository.discardSession(existingSessionId)
-            val sessionId = sessionRepository.startWorkoutSession(newWorkoutTemplateId)
-            onSessionStarted(sessionId)
+            try {
+                sessionRepository.discardSession(existingSessionId)
+                val sessionId = sessionRepository.startWorkoutSession(newWorkoutTemplateId)
+                onSessionStarted(sessionId)
+            } catch (_: IllegalArgumentException) {
+                // Template pode ter sido removido antes do clique
+            } finally {
+                isStartingSession = false
+            }
         }
     }
 

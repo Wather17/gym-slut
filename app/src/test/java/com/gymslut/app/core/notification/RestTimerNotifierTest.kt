@@ -41,6 +41,7 @@ class RestTimerNotifierTest {
         val channel = nm.getNotificationChannel("rest_timer_channel")
         assertNotNull(channel)
         assertEquals(1, shadowOf(nm).allNotifications.size)
+        assertNotNull(shadowOf(nm).allNotifications.first().contentIntent)
 
         // Chamar segunda vez reutiliza canal existente sem duplicar erro
         notifier.notifyRestFinished("Leg Press")
