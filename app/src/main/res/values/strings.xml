@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Gym Slut</string>
+    <string name="nav_today">Hoje</string>
+    <string name="nav_plans">Planos</string>
+    <string name="nav_catalog">Catálogo</string>
+    <string name="nav_history">Histórico</string>
+    <string name="nav_settings">Configurações</string>
+    <string name="action_back">Voltar</string>
+    <string name="placeholder_today">Seu treino do dia aparecerá aqui.</string>
+    <string name="placeholder_plans">Seus planos de treino e cronograma semanal aparecerão aqui.</string>
+    <string name="placeholder_catalog">Seu catálogo de aparelhos e exercícios aparecerá aqui.</string>
+    <string name="placeholder_history">Seu histórico de sessões e cargas aparecerá aqui.</string>
+    <string name="placeholder_settings">Configurações de tema e backup em JSON estarão disponíveis aqui.</string>
+</resources>
