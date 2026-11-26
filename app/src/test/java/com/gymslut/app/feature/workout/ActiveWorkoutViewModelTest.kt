@@ -191,6 +191,50 @@ class ActiveWorkoutViewModelTest {
         job.cancel()
     }
 
+    @Test
+    fun concurrentStaleSetUpdatesAndTemplateReorder_doNotOverwriteFieldsOrMismatchRest() = runTest(testDispatcher) {
+        // Template tem outro exercício (id=99, rest=180s) na posição 0 e o exercício da sessão (id=5, rest=75s) na posição 1
+        planRepo.exercises = listOf(
+            WorkoutExerciseDetail(1L, 10L, 99L, 0, 3, 10, 180, "Outro", "Máquina"),
+            WorkoutExerciseDetail(2L, 10L, 5L, 1, 2, 10, 75, "Supino Reto", "Supino Reto")
+        )
+        val vm = ActiveWorkoutViewModel(
+            SavedStateHandle(mapOf("sessionId" to 1L)),
+            sessionRepo,
+            planRepo,
+            ElapsedTimeProvider { nowMs },
+            notifier
+        )
+        val job = launch { vm.uiState.collect() }
+        advanceUntilIdle()
+
+        val group = vm.uiState.value.exerciseGroups.first()
+        // Deve usar 75s do exercício id=5, nunca 180s do exercício id=99 que ocupou a posição 0
+        assertEquals(75, group.restSeconds)
+
+        // Passa o MESMO snapshot obsoleto para peso, reps e conclusão antes do Flow re-emitir
+        val staleSet = group.sets.first()
+        vm.updateSetWeight(staleSet, "95,5")
+        vm.updateSetReps(staleSet, "15")
+        vm.toggleSetCompleted(staleSet, group.restSeconds)
+        runCurrent()
+
+        val updated = vm.uiState.value.exerciseGroups.first().sets.first()
+        assertEquals(95.5, updated.weightKg, 0.001)
+        assertEquals(15, updated.reps)
+        assertTrue(updated.completed)
+        assertNotNull(updated.completedAtEpochMs)
+
+        // Duplo clique em finishWorkout executa apenas uma vez enquanto em andamento
+        var finishCallbacks = 0
+        vm.finishWorkout { finishCallbacks++ }
+        vm.finishWorkout { finishCallbacks++ }
+        advanceUntilIdle()
+        assertEquals(1, finishCallbacks)
+
+        job.cancel()
+    }
+
     private class FakeRestNotifier : RestAlertNotifier {
         val notified = mutableListOf<String>()
         override fun notifyRestFinished(exerciseName: String) {
@@ -225,6 +269,24 @@ class ActiveWorkoutViewModelTest {
             setsFlow.value = setsFlow.value.map { if (it.id == set.id) set else it }
         }
 
+        override suspend fun updateSetWeight(setId: Long, weightKg: Double) {
+            setsFlow.value = setsFlow.value.map { if (it.id == setId) it.copy(weightKg = weightKg) else it }
+        }
+
+        override suspend fun updateSetReps(setId: Long, reps: Int) {
+            setsFlow.value = setsFlow.value.map { if (it.id == setId) it.copy(reps = reps) else it }
+        }
+
+        override suspend fun updateSetCompleted(
+            setId: Long,
+            completed: Boolean,
+            completedAtEpochMs: Long?
+        ) {
+            setsFlow.value = setsFlow.value.map {
+                if (it.id == setId) it.copy(completed = completed, completedAtEpochMs = completedAtEpochMs) else it
+            }
+        }
+
         override suspend fun addExtraSet(sessionId: Long, exerciseOrderIndex: Int): Long {
             val last = setsFlow.value.last { it.exerciseOrderIndex == exerciseOrderIndex }
             val id = nextId++
@@ -247,15 +309,15 @@ class ActiveWorkoutViewModelTest {
     }
 
     private class FakeWorkoutPlanRepository : PlanRepository {
+        var exercises: List<WorkoutExerciseDetail> = listOf(
+            WorkoutExerciseDetail(1L, 10L, 5L, 0, 2, 10, 90, "Supino Reto", "Supino Reto")
+        )
+
         override fun observeAllPlans(): Flow<List<TrainingPlanEntity>> = flowOf(emptyList())
         override fun observeActivePlan(): Flow<TrainingPlanEntity?> = flowOf(null)
         override fun observeTemplatesForPlan(planId: Long): Flow<List<WorkoutTemplateEntity>> = flowOf(emptyList())
         override fun observeWorkoutExercises(workoutTemplateId: Long): Flow<List<WorkoutExerciseDetail>> =
-            flowOf(
-                listOf(
-                    WorkoutExerciseDetail(1L, workoutTemplateId, 5L, 0, 2, 10, 90, "Supino Reto", "Supino Reto")
-                )
-            )
+            flowOf(exercises)
 
         override fun observeScheduleForPlan(planId: Long): Flow<List<WeeklyScheduleEntity>> = flowOf(emptyList())
         override suspend fun getPlanById(planId: Long) = null

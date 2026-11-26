@@ -32,6 +32,7 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     private val sessionId: Long = checkNotNull(savedStateHandle["sessionId"])
     private val restTimerController = RestTimerController(viewModelScope, elapsedTimeProvider)
+    private var isClosingSession = false
 
     val timerState: StateFlow<RestTimerState> = restTimerController.state
 
@@ -60,7 +61,6 @@ class ActiveWorkoutViewModel @Inject constructor(
         sessionRepository.observeSetsForSession(sessionId),
         templateExercisesFlow
     ) { session, sets, templateDetails ->
-        val restByOrder = templateDetails.associate { it.orderIndex to it.restSeconds }
         val restByExerciseId = templateDetails.associate { it.exerciseId to it.restSeconds }
 
         val groups = sets
@@ -68,7 +68,9 @@ class ActiveWorkoutViewModel @Inject constructor(
             .toSortedMap()
             .map { (orderIndex, exerciseSets) ->
                 val first = exerciseSets.first()
-                val restSeconds = restByOrder[orderIndex]
+                val restSeconds = templateDetails.getOrNull(orderIndex)
+                    ?.takeIf { it.exerciseId == first.exerciseId }
+                    ?.restSeconds
                     ?: first.exerciseId?.let { restByExerciseId[it] }
                     ?: DEFAULT_REST_SECONDS
                 ActiveExerciseGroup(
@@ -94,14 +96,14 @@ class ActiveWorkoutViewModel @Inject constructor(
     fun updateSetWeight(set: SessionSetEntity, rawWeight: String) {
         val parsed = parseWeight(rawWeight) ?: return
         viewModelScope.launch {
-            sessionRepository.updateSet(set.copy(weightKg = parsed))
+            sessionRepository.updateSetWeight(set.id, parsed)
         }
     }
 
     fun updateSetReps(set: SessionSetEntity, rawReps: String) {
         val parsed = rawReps.trim().toIntOrNull()?.takeIf { it >= 0 } ?: return
         viewModelScope.launch {
-            sessionRepository.updateSet(set.copy(reps = parsed))
+            sessionRepository.updateSetReps(set.id, parsed)
         }
     }
 
@@ -109,12 +111,7 @@ class ActiveWorkoutViewModel @Inject constructor(
         val newCompleted = !set.completed
         val completedAt = if (newCompleted) System.currentTimeMillis() else null
         viewModelScope.launch {
-            sessionRepository.updateSet(
-                set.copy(
-                    completed = newCompleted,
-                    completedAtEpochMs = completedAt
-                )
-            )
+            sessionRepository.updateSetCompleted(set.id, newCompleted, completedAt)
             if (newCompleted && restSeconds > 0) {
                 restTimerController.start(set.exerciseNameSnapshot, restSeconds)
             }
@@ -150,20 +147,32 @@ class ActiveWorkoutViewModel @Inject constructor(
     }
 
     fun finishWorkout(onFinished: () -> Unit) {
+        if (isClosingSession) return
+        isClosingSession = true
         restTimerController.cancel()
         restAlertNotifier.cancelNotification()
         viewModelScope.launch {
-            sessionRepository.finishSession(sessionId)
-            onFinished()
+            try {
+                sessionRepository.finishSession(sessionId)
+                onFinished()
+            } finally {
+                isClosingSession = false
+            }
         }
     }
 
     fun discardWorkout(onDiscarded: () -> Unit) {
+        if (isClosingSession) return
+        isClosingSession = true
         restTimerController.cancel()
         restAlertNotifier.cancelNotification()
         viewModelScope.launch {
-            sessionRepository.discardSession(sessionId)
-            onDiscarded()
+            try {
+                sessionRepository.discardSession(sessionId)
+                onDiscarded()
+            } finally {
+                isClosingSession = false
+            }
         }
     }
 
