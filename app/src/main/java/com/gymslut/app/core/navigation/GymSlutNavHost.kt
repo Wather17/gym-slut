@@ -37,6 +37,7 @@ import com.gymslut.app.feature.history.SessionDetailScreen
 import com.gymslut.app.feature.plans.PlanDetailScreen
 import com.gymslut.app.feature.plans.PlansScreen
 import com.gymslut.app.feature.plans.WorkoutEditorScreen
+import com.gymslut.app.feature.settings.SettingsScreen
 import com.gymslut.app.feature.today.TodayScreen
 import com.gymslut.app.feature.workout.ActiveWorkoutScreen
 
@@ -207,7 +208,7 @@ fun GymSlutAppShell() {
                 ExerciseHistoryScreen()
             }
             composable(AppDestination.Settings.route) {
-                PlaceholderScreen(text = stringResource(R.string.placeholder_settings))
+                SettingsScreen()
             }
         }
     }
