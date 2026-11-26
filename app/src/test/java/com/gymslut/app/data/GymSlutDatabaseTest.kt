@@ -80,9 +80,43 @@ class GymSlutDatabaseTest {
         val muscles = exerciseList.map { it.primaryMuscle }.toSet()
         assertTrue(muscles.containsAll(MuscleGroup.entries))
 
-        CatalogSeedData.seedIfNeeded(db.equipmentDao(), db.exerciseDao())
+        CatalogSeedData.seedIfNeeded(db.equipmentDao(), db.exerciseDao(), fromVersion = 0)
         assertEquals(equipmentList.size, db.equipmentDao().getAll().size)
         assertEquals(exerciseList.size, db.exerciseDao().getAll().size)
+    }
+
+    @Test
+    fun catalogSeed_upgradePreservesDeletedAndRenamedV1ItemsAndAddsOnlyV2() = runTest {
+        // Simula banco existente da v1 onde o usuário renomeou "Peck Deck" e excluiu "Burpee" / "Paralelas"
+        val renamedPeckId = catalogRepo.createEquipment("Voador da Academia", EquipmentCategory.MACHINE)
+        catalogRepo.createExercise("Voador Custom", MuscleGroup.CHEST, null, renamedPeckId)
+
+        // Upgrade vindo de v1.0.1 (fromVersion = 0 com banco já populado -> effectiveFromVersion = 1)
+        CatalogSeedData.seedIfNeeded(db.equipmentDao(), db.exerciseDao(), fromVersion = 0)
+
+        val equipmentNames = db.equipmentDao().getAll().map { it.name }.toSet()
+        val exerciseNames = db.exerciseDao().getAll().map { it.name }.toSet()
+
+        // Itens da v2 foram inseridos
+        assertTrue(equipmentNames.contains("Supino Máquina"))
+        assertTrue(equipmentNames.contains("Esteira"))
+        assertTrue(exerciseNames.contains("Supino Máquina"))
+        assertTrue(exerciseNames.contains("Caminhada / Trote na Esteira"))
+
+        // Itens da v1 removidos/renomeados NÃO foram ressuscitados ou duplicados
+        assertTrue("Voador da Academia" in equipmentNames)
+        assertTrue("Peck Deck" !in equipmentNames)
+        assertTrue("Paralelas" !in equipmentNames)
+        assertTrue("Burpee" !in exerciseNames)
+
+        // Chamada com fromVersion == SEED_VERSION é no-op
+        val countBefore = db.equipmentDao().getAll().size
+        CatalogSeedData.seedIfNeeded(
+            db.equipmentDao(),
+            db.exerciseDao(),
+            fromVersion = CatalogSeedData.SEED_VERSION
+        )
+        assertEquals(countBefore, db.equipmentDao().getAll().size)
     }
 
     @Test

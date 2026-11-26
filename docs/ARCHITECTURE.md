@@ -63,9 +63,9 @@ com.gymslut.app
 - **Schemas exportados:** KSP exporta os JSONs de schema em `app/schemas/` para rastreamento seguro de futuras migrações.
 
 ### Seed Versionado em Upgrades
-- `CatalogSeedData.seedIfNeeded(...)` é **idempotente** (verifica itens existentes por nome normalizado).
-- Em `DatabaseModule`, o callback `RoomDatabase.Callback.onOpen` compara `catalog_seed_version` salvo em `SharedPreferences` com `CatalogSeedData.SEED_VERSION`.
-- Em instalações limpas ou ao atualizar de uma versão anterior com novo `SEED_VERSION`, apenas os aparelhos e exercícios ausentes são inseridos, executando uma única vez por versão sem re-inserir itens que o usuário tenha removido depois.
+- Cada item de `CatalogSeedData.defaultEquipment` e `defaultExercises` declara `introducedInVersion` (`1` para o catálogo original; `2` para os aparelhos guiados).
+- `CatalogSeedData.seedIfNeeded(..., fromVersion)` é **incremental e idempotente**: em upgrades, insere apenas itens com `introducedInVersion > effectiveFromVersion` (detectando bancos v1 pré-existentes sem preferência gravada), evitando ressuscitar itens padrão apagados ou duplicar itens renomeados pelo usuário.
+- Em `DatabaseModule`, o callback `RoomDatabase.Callback.onOpen` serializa o seed via `Mutex` e só atualiza `catalog_seed_version` em `SharedPreferences` quando a rotina conclui com sucesso.
 
 ### Backup e Restauração JSON (`schemaVersion = 1`)
 - Serializado com `kotlinx.serialization` (`BackupPayload`).
