@@ -14,8 +14,31 @@ import com.gymslut.app.data.local.entity.WorkoutExerciseEntity
 import com.gymslut.app.data.local.entity.WorkoutSessionEntity
 import com.gymslut.app.data.local.entity.WorkoutTemplateEntity
 
+data class DatabaseBackupSnapshot(
+    val equipment: List<EquipmentEntity>,
+    val exercises: List<ExerciseEntity>,
+    val plans: List<TrainingPlanEntity>,
+    val templates: List<WorkoutTemplateEntity>,
+    val workoutExercises: List<WorkoutExerciseEntity>,
+    val weeklySchedule: List<WeeklyScheduleEntity>,
+    val sessions: List<WorkoutSessionEntity>,
+    val sessionSets: List<SessionSetEntity>
+)
+
 @Dao
 interface BackupDao {
+
+    @Transaction
+    suspend fun readFullSnapshot(): DatabaseBackupSnapshot = DatabaseBackupSnapshot(
+        equipment = getAllEquipment(),
+        exercises = getAllExercises(),
+        plans = getAllPlans(),
+        templates = getAllTemplates(),
+        workoutExercises = getAllWorkoutExercises(),
+        weeklySchedule = getAllWeeklySchedules(),
+        sessions = getAllSessions(),
+        sessionSets = getAllSessionSets()
+    )
 
     @Query("SELECT * FROM equipment ORDER BY id ASC")
     suspend fun getAllEquipment(): List<EquipmentEntity>

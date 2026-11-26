@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -35,6 +36,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gymslut.app.core.preferences.ThemeMode
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 @Composable
@@ -44,6 +48,7 @@ fun SettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(state.feedbackMessage) {
         val msg = state.feedbackMessage
@@ -58,16 +63,20 @@ fun SettingsScreen(
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         viewModel.exportBackup { jsonContent ->
-            try {
-                context.contentResolver.openOutputStream(uri)?.use { out ->
-                    out.write(jsonContent.toByteArray(Charsets.UTF_8))
-                } ?: throw IllegalStateException("Fluxo de saída indisponível.")
-                viewModel.reportExportCompleted(success = true)
-            } catch (e: Exception) {
-                viewModel.reportExportCompleted(
-                    success = false,
-                    errorMessage = "Erro ao gravar arquivo: ${e.message ?: "erro"}"
-                )
+            coroutineScope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.use { out ->
+                            out.write(jsonContent.toByteArray(Charsets.UTF_8))
+                        } ?: throw IllegalStateException("Fluxo de saída indisponível.")
+                    }
+                    viewModel.reportExportCompleted(success = true)
+                } catch (e: Exception) {
+                    viewModel.reportExportCompleted(
+                        success = false,
+                        errorMessage = "Erro ao gravar arquivo: ${e.message ?: "erro"}"
+                    )
+                }
             }
         }
     }
@@ -76,16 +85,20 @@ fun SettingsScreen(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
-        try {
-            val jsonContent = context.contentResolver.openInputStream(uri)?.use { input ->
-                input.bufferedReader(Charsets.UTF_8).readText()
-            } ?: ""
-            viewModel.prepareRestore(jsonContent)
-        } catch (e: Exception) {
-            viewModel.reportExportCompleted(
-                success = false,
-                errorMessage = "Não foi possível ler o arquivo selecionado."
-            )
+        coroutineScope.launch {
+            try {
+                val jsonContent = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        input.bufferedReader(Charsets.UTF_8).readText()
+                    } ?: ""
+                }
+                viewModel.prepareRestore(jsonContent)
+            } catch (e: Exception) {
+                viewModel.reportExportCompleted(
+                    success = false,
+                    errorMessage = "Não foi possível ler o arquivo selecionado."
+                )
+            }
         }
     }
 

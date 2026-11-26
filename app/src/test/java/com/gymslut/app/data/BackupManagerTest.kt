@@ -111,33 +111,44 @@ class BackupManagerTest {
             "   ",
             "{ not valid json",
             """{"schemaVersion":99,"exportedAtEpochMs":1}""",
-            // Aparelho duplicado / sem nome
+            // Aparelho duplicado (ID ou nome ignorando caixa/espaços) / sem nome
             """{"schemaVersion":1,"exportedAtEpochMs":1,"equipment":[{"id":1,"name":"A","category":"CABLE"},{"id":1,"name":"B","category":"CABLE"}]}""",
+            """{"schemaVersion":1,"exportedAtEpochMs":1,"equipment":[{"id":1,"name":"Supino","category":"CABLE"},{"id":2,"name":" supino ","category":"CABLE"}]}""",
             """{"schemaVersion":1,"exportedAtEpochMs":1,"equipment":[{"id":1,"name":"   ","category":"CABLE"}]}""",
             // Exercício duplicado / FK aparelho inexistente / sem nome
             """{"schemaVersion":1,"exportedAtEpochMs":1,"equipment":[{"id":1,"name":"A","category":"CABLE"}],"exercises":[{"id":1,"name":"X","primaryMuscle":"CHEST","equipmentId":1},{"id":1,"name":"Y","primaryMuscle":"CHEST","equipmentId":1}]}""",
             """{"schemaVersion":1,"exportedAtEpochMs":1,"equipment":[],"exercises":[{"id":1,"name":"X","primaryMuscle":"CHEST","equipmentId":999}]}""",
             """{"schemaVersion":1,"exportedAtEpochMs":1,"equipment":[{"id":1,"name":"A","category":"CABLE"}],"exercises":[{"id":1,"name":" ","primaryMuscle":"CHEST","equipmentId":1}]}""",
-            // Planos duplicados / >1 plano ativo
+            // Planos duplicados / sem nome / >1 plano ativo
             """{"schemaVersion":1,"exportedAtEpochMs":1,"trainingPlans":[{"id":1,"name":"A","isActive":false,"createdAtEpochMs":1},{"id":1,"name":"B","isActive":false,"createdAtEpochMs":2}]}""",
+            """{"schemaVersion":1,"exportedAtEpochMs":1,"trainingPlans":[{"id":1,"name":"   ","isActive":false,"createdAtEpochMs":1}]}""",
             """{"schemaVersion":1,"exportedAtEpochMs":1,"trainingPlans":[{"id":1,"name":"A","isActive":true,"createdAtEpochMs":1},{"id":2,"name":"B","isActive":true,"createdAtEpochMs":2}]}""",
-            // Templates duplicados / FK plano inexistente / sem nome
+            // Templates duplicados / FK plano inexistente / sem nome / orderIndex negativo
             """{"schemaVersion":1,"exportedAtEpochMs":1,"trainingPlans":[{"id":1,"name":"A","isActive":true,"createdAtEpochMs":1}],"workoutTemplates":[{"id":1,"planId":1,"name":"T1","orderIndex":0},{"id":1,"planId":1,"name":"T2","orderIndex":1}]}""",
             """{"schemaVersion":1,"exportedAtEpochMs":1,"trainingPlans":[],"workoutTemplates":[{"id":1,"planId":99,"name":"T1","orderIndex":0}]}""",
-            // WorkoutExercise duplicado / FK inválida / bounds inválidos
+            """{"schemaVersion":1,"exportedAtEpochMs":1,"trainingPlans":[{"id":1,"name":"A","isActive":true,"createdAtEpochMs":1}],"workoutTemplates":[{"id":1,"planId":1,"name":"T1","orderIndex":-1}]}""",
+            // WorkoutExercise duplicado / FK inválida / orderIndex ou bounds inválidos
             """{"schemaVersion":1,"exportedAtEpochMs":1,"equipment":[{"id":1,"name":"A","category":"CABLE"}],"exercises":[{"id":1,"name":"X","primaryMuscle":"CHEST","equipmentId":1}],"trainingPlans":[{"id":1,"name":"A","isActive":true,"createdAtEpochMs":1}],"workoutTemplates":[{"id":1,"planId":1,"name":"T1","orderIndex":0}],"workoutExercises":[{"id":1,"workoutTemplateId":1,"exerciseId":1,"orderIndex":0,"targetSets":3,"targetReps":10,"restSeconds":60},{"id":1,"workoutTemplateId":1,"exerciseId":1,"orderIndex":1,"targetSets":3,"targetReps":10,"restSeconds":60}]}""",
             """{"schemaVersion":1,"exportedAtEpochMs":1,"equipment":[{"id":1,"name":"A","category":"CABLE"}],"exercises":[{"id":1,"name":"X","primaryMuscle":"CHEST","equipmentId":1}],"trainingPlans":[{"id":1,"name":"A","isActive":true,"createdAtEpochMs":1}],"workoutTemplates":[{"id":1,"planId":1,"name":"T1","orderIndex":0}],"workoutExercises":[{"id":1,"workoutTemplateId":1,"exerciseId":1,"orderIndex":0,"targetSets":0,"targetReps":10,"restSeconds":60}]}""",
-            // WeeklySchedule duplicado / dayOfWeek inválido / templateId inválido
+            """{"schemaVersion":1,"exportedAtEpochMs":1,"equipment":[{"id":1,"name":"A","category":"CABLE"}],"exercises":[{"id":1,"name":"X","primaryMuscle":"CHEST","equipmentId":1}],"trainingPlans":[{"id":1,"name":"A","isActive":true,"createdAtEpochMs":1}],"workoutTemplates":[{"id":1,"planId":1,"name":"T1","orderIndex":0}],"workoutExercises":[{"id":1,"workoutTemplateId":1,"exerciseId":1,"orderIndex":-1,"targetSets":3,"targetReps":10,"restSeconds":60}]}""",
+            // WeeklySchedule duplicado / dayOfWeek inválido / templateId inválido / cross-plan
             """{"schemaVersion":1,"exportedAtEpochMs":1,"trainingPlans":[{"id":1,"name":"A","isActive":true,"createdAtEpochMs":1}],"weeklySchedule":[{"planId":1,"dayOfWeek":1,"workoutTemplateId":null},{"planId":1,"dayOfWeek":1,"workoutTemplateId":null}]}""",
             """{"schemaVersion":1,"exportedAtEpochMs":1,"trainingPlans":[{"id":1,"name":"A","isActive":true,"createdAtEpochMs":1}],"weeklySchedule":[{"planId":1,"dayOfWeek":8,"workoutTemplateId":null}]}""",
             """{"schemaVersion":1,"exportedAtEpochMs":1,"trainingPlans":[{"id":1,"name":"A","isActive":true,"createdAtEpochMs":1}],"weeklySchedule":[{"planId":1,"dayOfWeek":1,"workoutTemplateId":999}]}""",
-            // Sessões duplicadas / FK inválida
+            """{"schemaVersion":1,"exportedAtEpochMs":1,"trainingPlans":[{"id":1,"name":"A","isActive":true,"createdAtEpochMs":1},{"id":2,"name":"B","isActive":false,"createdAtEpochMs":2}],"workoutTemplates":[{"id":10,"planId":2,"name":"TB","orderIndex":0}],"weeklySchedule":[{"planId":1,"dayOfWeek":1,"workoutTemplateId":10}]}""",
+            // Sessões duplicadas / FK inválida / snapshot vazio / finishedAt < startedAt / cross-plan
             """{"schemaVersion":1,"exportedAtEpochMs":1,"workoutSessions":[{"id":1,"workoutNameSnapshot":"T","startedAtEpochMs":1},{"id":1,"workoutNameSnapshot":"T","startedAtEpochMs":2}]}""",
             """{"schemaVersion":1,"exportedAtEpochMs":1,"workoutSessions":[{"id":1,"planId":999,"workoutNameSnapshot":"T","startedAtEpochMs":1}]}""",
-            // Séries duplicadas / FK sessão inválida / peso negativo
+            """{"schemaVersion":1,"exportedAtEpochMs":1,"workoutSessions":[{"id":1,"workoutNameSnapshot":"   ","startedAtEpochMs":1}]}""",
+            """{"schemaVersion":1,"exportedAtEpochMs":1,"workoutSessions":[{"id":1,"workoutNameSnapshot":"T","startedAtEpochMs":500,"finishedAtEpochMs":100}]}""",
+            """{"schemaVersion":1,"exportedAtEpochMs":1,"trainingPlans":[{"id":1,"name":"A","isActive":true,"createdAtEpochMs":1},{"id":2,"name":"B","isActive":false,"createdAtEpochMs":2}],"workoutTemplates":[{"id":10,"planId":2,"name":"TB","orderIndex":0}],"workoutSessions":[{"id":1,"planId":1,"workoutTemplateId":10,"workoutNameSnapshot":"TB","startedAtEpochMs":100}]}""",
+            // Séries duplicadas / FK sessão inválida / peso negativo / setNumber < 1 / orderIndex < 0 / snapshot vazio
             """{"schemaVersion":1,"exportedAtEpochMs":1,"workoutSessions":[{"id":1,"workoutNameSnapshot":"T","startedAtEpochMs":1}],"sessionSets":[{"id":1,"sessionId":1,"exerciseNameSnapshot":"X","equipmentNameSnapshot":"Y","exerciseOrderIndex":0,"setNumber":1,"weightKg":10.0,"reps":10},{"id":1,"sessionId":1,"exerciseNameSnapshot":"X","equipmentNameSnapshot":"Y","exerciseOrderIndex":0,"setNumber":2,"weightKg":10.0,"reps":10}]}""",
             """{"schemaVersion":1,"exportedAtEpochMs":1,"workoutSessions":[],"sessionSets":[{"id":1,"sessionId":99,"exerciseNameSnapshot":"X","equipmentNameSnapshot":"Y","exerciseOrderIndex":0,"setNumber":1,"weightKg":10.0,"reps":10}]}""",
-            """{"schemaVersion":1,"exportedAtEpochMs":1,"workoutSessions":[{"id":1,"workoutNameSnapshot":"T","startedAtEpochMs":1}],"sessionSets":[{"id":1,"sessionId":1,"exerciseNameSnapshot":"X","equipmentNameSnapshot":"Y","exerciseOrderIndex":0,"setNumber":1,"weightKg":-5.0,"reps":10}]}"""
+            """{"schemaVersion":1,"exportedAtEpochMs":1,"workoutSessions":[{"id":1,"workoutNameSnapshot":"T","startedAtEpochMs":1}],"sessionSets":[{"id":1,"sessionId":1,"exerciseNameSnapshot":"X","equipmentNameSnapshot":"Y","exerciseOrderIndex":0,"setNumber":1,"weightKg":-5.0,"reps":10}]}""",
+            """{"schemaVersion":1,"exportedAtEpochMs":1,"workoutSessions":[{"id":1,"workoutNameSnapshot":"T","startedAtEpochMs":1}],"sessionSets":[{"id":1,"sessionId":1,"exerciseNameSnapshot":"X","equipmentNameSnapshot":"Y","exerciseOrderIndex":0,"setNumber":0,"weightKg":10.0,"reps":10}]}""",
+            """{"schemaVersion":1,"exportedAtEpochMs":1,"workoutSessions":[{"id":1,"workoutNameSnapshot":"T","startedAtEpochMs":1}],"sessionSets":[{"id":1,"sessionId":1,"exerciseNameSnapshot":"X","equipmentNameSnapshot":"Y","exerciseOrderIndex":-1,"setNumber":1,"weightKg":10.0,"reps":10}]}""",
+            """{"schemaVersion":1,"exportedAtEpochMs":1,"workoutSessions":[{"id":1,"workoutNameSnapshot":"T","startedAtEpochMs":1}],"sessionSets":[{"id":1,"sessionId":1,"exerciseNameSnapshot":"  ","equipmentNameSnapshot":"Y","exerciseOrderIndex":0,"setNumber":1,"weightKg":10.0,"reps":10}]}"""
         )
 
         for (badInput in invalidInputs) {
