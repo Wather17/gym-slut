@@ -64,7 +64,7 @@ class TodayViewModelTest {
     }
 
     @Test
-    fun scheduledWorkoutAndRestDay_reflectsWeekdayAndAllowsAlternativeChoice() = runTest(testDispatcher) {
+    fun scheduledWorkoutRestDayAndDiscardAndStart_workAsExpected() = runTest(testDispatcher) {
         val planId = planRepo.createPlan("ABC")
         val treinoA = planRepo.createWorkoutTemplate(planId, "Treino A")
         val treinoB = planRepo.createWorkoutTemplate(planId, "Treino B")
@@ -82,12 +82,18 @@ class TodayViewModelTest {
         assertEquals(1, vmWednesday.uiState.value.scheduledExercises.size)
         assertEquals(2, vmWednesday.uiState.value.allTemplates.size)
 
-        // Iniciar treino alternativo (Treino B)
         var startedSessionId: Long? = null
         vmWednesday.startWorkout(treinoB) { startedSessionId = it }
         advanceUntilIdle()
         assertNotNull(startedSessionId)
         assertNotNull(vmWednesday.uiState.value.inProgressSession)
+
+        // Descartar sessão existente e iniciar outra
+        var replacedSessionId: Long? = null
+        vmWednesday.discardAndStartWorkout(startedSessionId!!, treinoA) { replacedSessionId = it }
+        advanceUntilIdle()
+        assertNotNull(replacedSessionId)
+        assertEquals(replacedSessionId, vmWednesday.uiState.value.inProgressSession?.id)
         job1.cancel()
 
         // Quinta-feira (Descanso)
@@ -100,7 +106,7 @@ class TodayViewModelTest {
         assertNull(vmThursday.uiState.value.scheduledTemplate)
         assertEquals(2, vmThursday.uiState.value.allTemplates.size)
 
-        vmThursday.discardInProgressSession(startedSessionId!!)
+        vmThursday.discardInProgressSession(replacedSessionId!!)
         advanceUntilIdle()
         assertNull(vmThursday.uiState.value.inProgressSession)
         job2.cancel()

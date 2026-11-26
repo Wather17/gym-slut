@@ -29,6 +29,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.ZoneOffset
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HistoryViewModelTest {
@@ -50,10 +51,15 @@ class HistoryViewModelTest {
     }
 
     @Test
-    fun formatters_calculateDurationAndVolumeCorrectly() {
+    fun formatters_calculateDurationWeightAndEpochCorrectly() {
         assertEquals("45 min", HistoryFormatters.formatDuration(0L, 45 * 60_000L))
         assertEquals("1h 15min", HistoryFormatters.formatDuration(0L, 75 * 60_000L))
         assertEquals("< 1 min", HistoryFormatters.formatDuration(0L, 15_000L))
+        assertEquals("< 1 min", HistoryFormatters.formatDuration(5_000L, 1_000L))
+
+        assertEquals("80 kg", HistoryFormatters.formatKg(80.0))
+        assertEquals("82,5 kg", HistoryFormatters.formatKg(82.5))
+        assertEquals("01/01/1970 • 00:00", HistoryFormatters.formatEpochMs(0L, ZoneOffset.UTC))
 
         val sets = listOf(
             SessionSetEntity(1L, 1L, 10L, "Supino", "Barra", 0, 1, 80.0, 10, completed = true),

@@ -18,9 +18,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -28,6 +28,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -57,7 +58,18 @@ class ActiveWorkoutViewModelTest {
     }
 
     @Test
-    fun editWeightRepsToggleAddRemoveAndFinish_updatesSessionCorrectly() = runTest(testDispatcher) {
+    fun parseWeight_handlesValidInvalidAndDecimalCommaInputs() {
+        assertEquals(80.0, ActiveWorkoutViewModel.parseWeight("80")!!, 0.001)
+        assertEquals(82.5, ActiveWorkoutViewModel.parseWeight("82,5")!!, 0.001)
+        assertEquals(82.5, ActiveWorkoutViewModel.parseWeight(" 82.5 ")!!, 0.001)
+        assertEquals(0.0, ActiveWorkoutViewModel.parseWeight("0")!!, 0.001)
+        assertNull(ActiveWorkoutViewModel.parseWeight(""))
+        assertNull(ActiveWorkoutViewModel.parseWeight("abc"))
+        assertNull(ActiveWorkoutViewModel.parseWeight("-1"))
+    }
+
+    @Test
+    fun editWeightRepsTimerControlsAddRemoveAndFinish_workAsExpected() = runTest(testDispatcher) {
         val vm = ActiveWorkoutViewModel(
             SavedStateHandle(mapOf("sessionId" to 1L)),
             sessionRepo,
@@ -73,20 +85,64 @@ class ActiveWorkoutViewModelTest {
         assertEquals(90, group.restSeconds)
         assertEquals(2, group.sets.size)
 
+        // Entradas inválidas são ignoradas sem alterar valores existentes
         val firstSet = group.sets.first()
+        vm.updateSetWeight(firstSet, "-5")
+        vm.updateSetWeight(firstSet, "abc")
+        vm.updateSetReps(firstSet, "-2")
+        vm.updateSetReps(firstSet, "xyz")
+        runCurrent()
+        assertEquals(80.0, vm.uiState.value.exerciseGroups.first().sets.first().weightKg, 0.001)
+        assertEquals(10, vm.uiState.value.exerciseGroups.first().sets.first().reps)
+
         vm.updateSetWeight(firstSet, "82,5")
-        advanceUntilIdle()
+        runCurrent()
         assertEquals(82.5, vm.uiState.value.exerciseGroups.first().sets.first().weightKg, 0.001)
 
         vm.updateSetReps(vm.uiState.value.exerciseGroups.first().sets.first(), "12")
-        advanceUntilIdle()
+        runCurrent()
         assertEquals(12, vm.uiState.value.exerciseGroups.first().sets.first().reps)
 
+        // restSeconds == 0 não inicia timer
+        vm.toggleSetCompleted(vm.uiState.value.exerciseGroups.first().sets[1], 0)
+        runCurrent()
+        assertFalse(vm.timerState.value.isActive)
+
+        // Desmarcar série não inicia timer
+        vm.toggleSetCompleted(vm.uiState.value.exerciseGroups.first().sets[1], 90)
+        runCurrent()
+        assertFalse(vm.timerState.value.isActive)
+
+        // Marcar série com restSeconds > 0 inicia timer e suporta +15s, pausa, retomada, notificação e skip
         vm.toggleSetCompleted(vm.uiState.value.exerciseGroups.first().sets.first(), group.restSeconds)
         runCurrent()
         assertEquals(1, vm.uiState.value.completedSetsCount)
         assertTrue(vm.timerState.value.isActive)
         assertEquals(90, vm.timerState.value.remainingSeconds)
+
+        vm.addTimerSeconds(15)
+        runCurrent()
+        assertEquals(105, vm.timerState.value.remainingSeconds)
+
+        vm.toggleTimerPause()
+        runCurrent()
+        assertTrue(vm.timerState.value.isPaused)
+
+        vm.toggleTimerPause()
+        runCurrent()
+        assertFalse(vm.timerState.value.isPaused)
+
+        vm.skipTimer()
+        runCurrent()
+        assertFalse(vm.timerState.value.isActive)
+
+        // Deixar o timer expirar naturalmente dispara notificação
+        vm.toggleSetCompleted(vm.uiState.value.exerciseGroups.first().sets[1], 2)
+        runCurrent()
+        nowMs += 2_000L
+        advanceTimeBy(2_500L)
+        runCurrent()
+        assertEquals(listOf("Supino Reto"), notifier.notified)
 
         vm.addExtraSet(0)
         runCurrent()
@@ -101,13 +157,14 @@ class ActiveWorkoutViewModelTest {
         vm.finishWorkout { finished = true }
         advanceUntilIdle()
         assertTrue(finished)
-        assertEquals(false, vm.timerState.value.isActive)
+        assertFalse(vm.timerState.value.isActive)
         assertNotNull(sessionRepo.sessionFlow.value?.finishedAtEpochMs)
         job.cancel()
     }
 
     @Test
-    fun discardWorkout_removesSession() = runTest(testDispatcher) {
+    fun sessionWithoutTemplate_usesDefaultRestSecondsAndDiscardCancelsTimer() = runTest(testDispatcher) {
+        sessionRepo.sessionFlow.value = WorkoutSessionEntity(1L, null, null, "Treino Antigo", 1000L, null)
         val vm = ActiveWorkoutViewModel(
             SavedStateHandle(mapOf("sessionId" to 1L)),
             sessionRepo,
@@ -115,11 +172,23 @@ class ActiveWorkoutViewModelTest {
             ElapsedTimeProvider { nowMs },
             notifier
         )
+        val job = launch { vm.uiState.collect() }
+        advanceUntilIdle()
+
+        val group = vm.uiState.value.exerciseGroups.first()
+        assertEquals(ActiveWorkoutViewModel.DEFAULT_REST_SECONDS, group.restSeconds)
+
+        vm.toggleSetCompleted(group.sets.first(), group.restSeconds)
+        runCurrent()
+        assertTrue(vm.timerState.value.isActive)
+
         var discarded = false
         vm.discardWorkout { discarded = true }
         advanceUntilIdle()
         assertTrue(discarded)
+        assertFalse(vm.timerState.value.isActive)
         assertNull(sessionRepo.sessionFlow.value)
+        job.cancel()
     }
 
     private class FakeRestNotifier : RestAlertNotifier {

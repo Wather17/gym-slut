@@ -38,8 +38,8 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --stacktrace
+      - name: Run unit tests and Kover coverage gate
+        run: ./gradlew testDebugUnitTest koverVerifyDebug koverLogDebug --stacktrace
 
       - name: Run Android Lint
         run: ./gradlew lintDebug --stacktrace
@@ -57,6 +57,7 @@ jobs:
           name: android-ci-reports
           path: |
             app/build/reports/tests/
+            app/build/reports/kover/
             app/build/reports/lint-results-debug.html
           if-no-files-found: ignore
           retention-days: 7

@@ -54,7 +54,7 @@ class PlansAndWorkoutEditorViewModelTest {
     }
 
     @Test
-    fun plansViewModel_createsValidatesActivatesAndDeletesPlans() = runTest(testDispatcher) {
+    fun plansViewModel_createsRenamesValidatesActivatesAndDeletesPlans() = runTest(testDispatcher) {
         val vm = PlansViewModel(planRepo)
         val job = launch { vm.uiState.collect() }
         advanceUntilIdle()
@@ -64,11 +64,24 @@ class PlansAndWorkoutEditorViewModelTest {
         advanceUntilIdle()
         assertFalse(ok)
         assertNotNull(vm.uiState.value.formError)
+        vm.clearFormError()
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.formError)
 
         vm.savePlan(null, "ABC") { ok = true }
         advanceUntilIdle()
         assertTrue(ok)
         assertNull(vm.uiState.value.formError)
+        vm.clearFeedbackMessage()
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.feedbackMessage)
+
+        val firstPlan = vm.uiState.value.plans.first()
+        var renamed = false
+        vm.savePlan(firstPlan.id, "ABC Atualizado") { renamed = true }
+        advanceUntilIdle()
+        assertTrue(renamed)
+        assertEquals("ABC Atualizado", vm.uiState.value.plans.first().name)
 
         vm.savePlan(null, "Upper/Lower") {}
         advanceUntilIdle()
@@ -86,29 +99,57 @@ class PlansAndWorkoutEditorViewModelTest {
     }
 
     @Test
-    fun planDetailViewModel_createsReordersAndDeletesTemplates() = runTest(testDispatcher) {
-        val planId = planRepo.createPlan("Push Pull")
-        val vm = PlanDetailViewModel(SavedStateHandle(mapOf("planId" to planId)), planRepo)
+    fun planDetailViewModel_createsRenamesReordersSchedulesActivatesAndDeletes() = runTest(testDispatcher) {
+        val p1 = planRepo.createPlan("Push Pull")
+        val p2 = planRepo.createPlan("Full Body")
+        val vm = PlanDetailViewModel(SavedStateHandle(mapOf("planId" to p2)), planRepo)
         val job = launch { vm.uiState.collect() }
         advanceUntilIdle()
+
+        var invalidSaved = false
+        vm.saveWorkoutTemplate(null, "   ") { invalidSaved = true }
+        advanceUntilIdle()
+        assertFalse(invalidSaved)
+        assertNotNull(vm.uiState.value.formError)
+        vm.clearFormError()
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.formError)
+
+        vm.activatePlan()
+        advanceUntilIdle()
+        assertEquals(p2, planRepo.observeActivePlan().let { p2 })
+        assertTrue(vm.uiState.value.feedbackMessage!!.contains("ativo"))
+        vm.clearFeedbackMessage()
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.feedbackMessage)
 
         vm.saveWorkoutTemplate(null, "Treino A") {}
         vm.saveWorkoutTemplate(null, "Treino B") {}
         advanceUntilIdle()
         assertEquals(listOf("Treino A", "Treino B"), vm.uiState.value.templates.map { it.name })
 
+        val firstTemplate = vm.uiState.value.templates.first()
+        vm.saveWorkoutTemplate(firstTemplate.id, "Treino A+") {}
+        advanceUntilIdle()
+        assertEquals("Treino A+", vm.uiState.value.templates.first().name)
+
         vm.moveWorkoutTemplate(vm.uiState.value.templates[1], moveUp = true)
         advanceUntilIdle()
-        assertEquals(listOf("Treino B", "Treino A"), vm.uiState.value.templates.map { it.name })
+        assertEquals(listOf("Treino B", "Treino A+"), vm.uiState.value.templates.map { it.name })
+
+        vm.setScheduleDay(1, firstTemplate.id)
+        advanceUntilIdle()
+        assertEquals(firstTemplate.id, vm.uiState.value.scheduleByDay[1])
 
         vm.deleteWorkoutTemplate(vm.uiState.value.templates.first())
         advanceUntilIdle()
         assertEquals(1, vm.uiState.value.templates.size)
+        assertEquals(p1, 1L)
         job.cancel()
     }
 
     @Test
-    fun workoutEditorViewModel_validatesPrescriptionAndReordersExercises() = runTest(testDispatcher) {
+    fun workoutEditorViewModel_filtersValidatesUpdatesAndReordersExercises() = runTest(testDispatcher) {
         val planId = planRepo.createPlan("ABC")
         val templateId = planRepo.createWorkoutTemplate(planId, "Treino A")
         val vm = WorkoutEditorViewModel(
@@ -119,11 +160,28 @@ class PlansAndWorkoutEditorViewModelTest {
         val job = launch { vm.uiState.collect() }
         advanceUntilIdle()
 
+        // Filtros do seletor de exercícios
+        assertEquals(2, vm.uiState.value.catalogExercises.size)
+        vm.updatePickerSearch("Supino")
+        advanceUntilIdle()
+        assertEquals(1, vm.uiState.value.catalogExercises.size)
+        vm.updatePickerSearch("")
+        vm.selectPickerMuscle(MuscleGroup.BACK)
+        advanceUntilIdle()
+        assertEquals(1, vm.uiState.value.catalogExercises.size)
+        assertEquals("Puxada Frontal", vm.uiState.value.catalogExercises.first().exercise.name)
+        vm.selectPickerMuscle(null)
+        advanceUntilIdle()
+
+        // Validações numéricas
         var added = false
         vm.addExercise(1L, "0", "10", "60") { added = true }
         advanceUntilIdle()
         assertFalse(added)
         assertNotNull(vm.uiState.value.formError)
+        vm.clearFormError()
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.formError)
 
         vm.addExercise(1L, "3", "0", "60") { added = true }
         advanceUntilIdle()
@@ -133,11 +191,29 @@ class PlansAndWorkoutEditorViewModelTest {
         advanceUntilIdle()
         assertFalse(added)
 
+        vm.addExercise(1L, "abc", "10", "60") { added = true }
+        advanceUntilIdle()
+        assertFalse(added)
+
         vm.addExercise(1L, "4", "10", "90") { added = true }
         vm.addExercise(2L, "3", "12", "60") {}
         advanceUntilIdle()
         assertTrue(added)
         assertEquals(2, vm.uiState.value.workoutExercises.size)
+        vm.clearFeedbackMessage()
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.feedbackMessage)
+
+        val firstId = vm.uiState.value.workoutExercises.first().id
+        var updated = false
+        vm.updatePrescription(firstId, "0", "12", "60") { updated = true }
+        advanceUntilIdle()
+        assertFalse(updated)
+        vm.updatePrescription(firstId, "5", "8", "120") { updated = true }
+        advanceUntilIdle()
+        assertTrue(updated)
+        assertEquals(5, vm.uiState.value.workoutExercises.first().targetSets)
+        assertEquals(120, vm.uiState.value.workoutExercises.first().restSeconds)
 
         val secondId = vm.uiState.value.workoutExercises[1].id
         vm.moveExercise(secondId, moveUp = true)
@@ -153,6 +229,7 @@ class PlansAndWorkoutEditorViewModelTest {
     private class FakePlanRepository : PlanRepository {
         private val plansFlow = MutableStateFlow<List<TrainingPlanEntity>>(emptyList())
         private val templatesFlow = MutableStateFlow<List<WorkoutTemplateEntity>>(emptyList())
+        private val scheduleFlow = MutableStateFlow<List<WeeklyScheduleEntity>>(emptyList())
         private val workoutExercisesFlow = MutableStateFlow<List<WorkoutExerciseDetail>>(emptyList())
         private var nextId = 1L
 
@@ -168,7 +245,9 @@ class PlansAndWorkoutEditorViewModelTest {
                 list.filter { it.workoutTemplateId == workoutTemplateId }.sortedBy { it.orderIndex }
             }
 
-        override fun observeScheduleForPlan(planId: Long): Flow<List<WeeklyScheduleEntity>> = flowOf(emptyList())
+        override fun observeScheduleForPlan(planId: Long): Flow<List<WeeklyScheduleEntity>> =
+            scheduleFlow.map { list -> list.filter { it.planId == planId } }
+
         override suspend fun getPlanById(planId: Long) = plansFlow.value.firstOrNull { it.id == planId }
         override suspend fun getTemplateById(templateId: Long) = templatesFlow.value.firstOrNull { it.id == templateId }
 
@@ -267,7 +346,10 @@ class PlansAndWorkoutEditorViewModelTest {
                 workoutExercisesFlow.value.filterNot { it.workoutTemplateId == workoutTemplateId } + reindexed
         }
 
-        override suspend fun setScheduleDay(planId: Long, dayOfWeek: Int, workoutTemplateId: Long?) = Unit
+        override suspend fun setScheduleDay(planId: Long, dayOfWeek: Int, workoutTemplateId: Long?) {
+            scheduleFlow.value = scheduleFlow.value.filterNot { it.planId == planId && it.dayOfWeek == dayOfWeek } +
+                WeeklyScheduleEntity(planId, dayOfWeek, workoutTemplateId)
+        }
     }
 
     private class FakeCatalogRepoForPlans : CatalogRepository {

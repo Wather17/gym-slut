@@ -28,4 +28,14 @@ class AppDestinationTest {
             BottomNavTabs.map { it.labelRes }
         )
     }
+
+    @Test
+    fun secondaryDestinations_createExpectedRoutes() {
+        assertEquals("settings", AppDestination.Settings.route)
+        assertEquals("plan_detail/42", AppDestination.PlanDetail.createRoute(42L))
+        assertEquals("workout_editor/7", AppDestination.WorkoutEditor.createRoute(7L))
+        assertEquals("active_workout/99", AppDestination.ActiveWorkout.createRoute(99L))
+        assertEquals("session_detail/15", AppDestination.SessionDetail.createRoute(15L))
+        assertEquals("exercise_history/8", AppDestination.ExerciseHistory.createRoute(8L))
+    }
 }

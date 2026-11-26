@@ -33,6 +33,7 @@ Para detalhes completos de arquitetura, modelo de dados e roadmap, consulte [doc
 
 ```bash
 ./gradlew testDebugUnitTest
+./gradlew koverVerifyDebug koverLogDebug koverHtmlReportDebug
 ./gradlew lintDebug
 ./gradlew assembleDebug
 ./gradlew assembleRelease
