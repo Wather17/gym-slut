@@ -23,12 +23,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.gymslut.app.R
 import com.gymslut.app.feature.catalog.CatalogScreen
+import com.gymslut.app.feature.plans.PlanDetailScreen
+import com.gymslut.app.feature.plans.PlansScreen
+import com.gymslut.app.feature.plans.WorkoutEditorScreen
 
 /**
  * Shell principal com barra de navegação inferior de 4 abas e rotas secundárias.
@@ -48,6 +53,8 @@ fun GymSlutAppShell() {
         AppDestination.Catalog.route -> stringResource(R.string.nav_catalog)
         AppDestination.History.route -> stringResource(R.string.nav_history)
         AppDestination.Settings.route -> stringResource(R.string.nav_settings)
+        AppDestination.PlanDetail.route -> stringResource(R.string.nav_plan_detail)
+        AppDestination.WorkoutEditor.route -> stringResource(R.string.nav_workout_editor)
         else -> stringResource(R.string.app_name)
     }
 
@@ -117,7 +124,27 @@ fun GymSlutAppShell() {
                 PlaceholderScreen(text = stringResource(R.string.placeholder_today))
             }
             composable(AppDestination.Plans.route) {
-                PlaceholderScreen(text = stringResource(R.string.placeholder_plans))
+                PlansScreen(
+                    onOpenPlan = { planId ->
+                        navController.navigate(AppDestination.PlanDetail.createRoute(planId))
+                    }
+                )
+            }
+            composable(
+                route = AppDestination.PlanDetail.route,
+                arguments = listOf(navArgument("planId") { type = NavType.LongType })
+            ) {
+                PlanDetailScreen(
+                    onOpenWorkoutEditor = { templateId ->
+                        navController.navigate(AppDestination.WorkoutEditor.createRoute(templateId))
+                    }
+                )
+            }
+            composable(
+                route = AppDestination.WorkoutEditor.route,
+                arguments = listOf(navArgument("workoutTemplateId") { type = NavType.LongType })
+            ) {
+                WorkoutEditorScreen()
             }
             composable(AppDestination.Catalog.route) {
                 CatalogScreen()
