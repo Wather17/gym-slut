@@ -21,3 +21,8 @@ local.properties
 .DS_Store
 captures/
 .cxx/
+
+# Release signing secrets
+*.jks
+*.keystore
+keystore.properties
