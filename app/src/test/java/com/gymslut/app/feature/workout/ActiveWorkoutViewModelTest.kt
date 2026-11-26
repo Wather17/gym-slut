@@ -7,6 +7,8 @@ import com.gymslut.app.data.local.entity.TrainingPlanEntity
 import com.gymslut.app.data.local.entity.WeeklyScheduleEntity
 import com.gymslut.app.data.local.entity.WorkoutSessionEntity
 import com.gymslut.app.data.local.entity.WorkoutTemplateEntity
+import com.gymslut.app.data.model.ExerciseHistoryRow
+import com.gymslut.app.data.model.SessionWithSets
 import com.gymslut.app.data.model.WorkoutExerciseDetail
 import com.gymslut.app.data.repository.PlanRepository
 import com.gymslut.app.data.repository.SessionRepository
@@ -143,6 +145,8 @@ class ActiveWorkoutViewModelTest {
 
         override fun observeInProgressSession(): Flow<WorkoutSessionEntity?> = sessionFlow
         override fun observeCompletedSessions(): Flow<List<WorkoutSessionEntity>> = flowOf(emptyList())
+        override fun observeCompletedSessionsWithSets(): Flow<List<SessionWithSets>> = flowOf(emptyList())
+        override fun observeExerciseHistory(exerciseId: Long): Flow<List<ExerciseHistoryRow>> = flowOf(emptyList())
         override fun observeSession(sessionId: Long): Flow<WorkoutSessionEntity?> = sessionFlow
         override fun observeSetsForSession(sessionId: Long): Flow<List<SessionSetEntity>> = setsFlow
 

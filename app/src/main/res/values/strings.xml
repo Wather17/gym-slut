@@ -8,6 +8,8 @@
     <string name="nav_plan_detail">Detalhes do Plano</string>
     <string name="nav_workout_editor">Editar Treino</string>
     <string name="nav_active_workout">Treino Ativo</string>
+    <string name="nav_session_detail">Detalhes da Sessão</string>
+    <string name="nav_exercise_history">Histórico do Exercício</string>
     <string name="rest_channel_name">Timer de descanso</string>
     <string name="rest_finished_title">Descanso concluído!</string>
     <string name="action_back">Voltar</string>
