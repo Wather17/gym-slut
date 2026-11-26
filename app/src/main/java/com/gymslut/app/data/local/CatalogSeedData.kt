@@ -12,6 +12,8 @@ import com.gymslut.app.data.local.entity.MuscleGroup
  */
 object CatalogSeedData {
 
+    const val SEED_VERSION: Int = 2
+
     data class SeedEquipment(
         val name: String,
         val category: EquipmentCategory,
@@ -29,19 +31,29 @@ object CatalogSeedData {
     val defaultEquipment: List<SeedEquipment> = listOf(
         SeedEquipment("Supino Reto", EquipmentCategory.BENCH_RACK),
         SeedEquipment("Supino Inclinado", EquipmentCategory.BENCH_RACK),
+        SeedEquipment("Supino Máquina", EquipmentCategory.MACHINE, "Pegadores na linha do meio do peito"),
+        SeedEquipment("Supino Inclinado Máquina", EquipmentCategory.MACHINE),
         SeedEquipment("Polia Alta", EquipmentCategory.CABLE),
         SeedEquipment("Polia Baixa", EquipmentCategory.CABLE),
         SeedEquipment("Cross Over", EquipmentCategory.CABLE),
         SeedEquipment("Leg Press 45°", EquipmentCategory.MACHINE),
+        SeedEquipment("Leg Press Horizontal", EquipmentCategory.MACHINE, "Não tire a lombar do banco e não trave o joelho"),
         SeedEquipment("Cadeira Extensora", EquipmentCategory.MACHINE),
         SeedEquipment("Mesa Flexora", EquipmentCategory.MACHINE),
         SeedEquipment("Cadeira Flexora", EquipmentCategory.MACHINE),
         SeedEquipment("Hack Machine", EquipmentCategory.MACHINE),
         SeedEquipment("Smith Machine", EquipmentCategory.MACHINE),
         SeedEquipment("Peck Deck", EquipmentCategory.MACHINE),
+        SeedEquipment("Crucifixo Inverso Máquina", EquipmentCategory.MACHINE, "Banco ajustado com braços na linha dos ombros"),
+        SeedEquipment("Desenvolvimento Máquina", EquipmentCategory.MACHINE, "Lombar apoiada no encosto do início ao fim"),
+        SeedEquipment("Elevação Lateral Máquina", EquipmentCategory.MACHINE, "Cotovelos apoiados, subindo até a linha do ombro"),
+        SeedEquipment("Remada Máquina", EquipmentCategory.MACHINE, "Apoie o peito e puxe juntando as escápulas atrás"),
+        SeedEquipment("Tríceps Máquina", EquipmentCategory.MACHINE),
         SeedEquipment("Cadeira Abdutora", EquipmentCategory.MACHINE),
         SeedEquipment("Cadeira Adutora", EquipmentCategory.MACHINE),
         SeedEquipment("Panturrilha em Pé", EquipmentCategory.MACHINE),
+        SeedEquipment("Abdominal Máquina", EquipmentCategory.MACHINE, "Curve o tronco pelo abdômen, não pelo pescoço"),
+        SeedEquipment("Esteira", EquipmentCategory.MACHINE, "Cardio leve/moderado (caminhada firme ou trote leve)"),
         SeedEquipment("Barra Reta", EquipmentCategory.FREE_WEIGHT),
         SeedEquipment("Barra W", EquipmentCategory.FREE_WEIGHT),
         SeedEquipment("Halteres", EquipmentCategory.FREE_WEIGHT),
@@ -56,6 +68,8 @@ object CatalogSeedData {
         // Peito
         SeedExercise("Supino Reto com Barra", MuscleGroup.CHEST, MuscleGroup.TRICEPS, "Supino Reto"),
         SeedExercise("Supino Inclinado com Barra", MuscleGroup.CHEST, MuscleGroup.SHOULDERS, "Supino Inclinado"),
+        SeedExercise("Supino Máquina", MuscleGroup.CHEST, MuscleGroup.TRICEPS, "Supino Máquina"),
+        SeedExercise("Supino Inclinado Máquina", MuscleGroup.CHEST, MuscleGroup.SHOULDERS, "Supino Inclinado Máquina"),
         SeedExercise("Supino Reto com Halteres", MuscleGroup.CHEST, MuscleGroup.TRICEPS, "Halteres"),
         SeedExercise("Supino Inclinado com Halteres", MuscleGroup.CHEST, MuscleGroup.SHOULDERS, "Banco Regulável"),
         SeedExercise("Crucifixo com Halteres", MuscleGroup.CHEST, null, "Banco Regulável"),
@@ -67,6 +81,7 @@ object CatalogSeedData {
         // Costas
         SeedExercise("Puxada Frontal Aberta", MuscleGroup.BACK, MuscleGroup.BICEPS, "Polia Alta"),
         SeedExercise("Puxada Triângulo", MuscleGroup.BACK, MuscleGroup.BICEPS, "Polia Alta"),
+        SeedExercise("Remada Máquina", MuscleGroup.BACK, MuscleGroup.BICEPS, "Remada Máquina"),
         SeedExercise("Remada Baixa Sentada", MuscleGroup.BACK, MuscleGroup.BICEPS, "Polia Baixa"),
         SeedExercise("Remada Curvada com Barra", MuscleGroup.BACK, MuscleGroup.BICEPS, "Barra Reta"),
         SeedExercise("Remada Unilateral (Serrote)", MuscleGroup.BACK, MuscleGroup.BICEPS, "Halteres"),
@@ -75,12 +90,15 @@ object CatalogSeedData {
         SeedExercise("Levantamento Terra", MuscleGroup.BACK, MuscleGroup.HAMSTRINGS, "Barra Reta"),
 
         // Ombros
+        SeedExercise("Desenvolvimento Máquina", MuscleGroup.SHOULDERS, MuscleGroup.TRICEPS, "Desenvolvimento Máquina"),
         SeedExercise("Desenvolvimento com Halteres", MuscleGroup.SHOULDERS, MuscleGroup.TRICEPS, "Halteres"),
         SeedExercise("Desenvolvimento Militar com Barra", MuscleGroup.SHOULDERS, MuscleGroup.TRICEPS, "Barra Reta"),
         SeedExercise("Desenvolvimento no Smith", MuscleGroup.SHOULDERS, MuscleGroup.TRICEPS, "Smith Machine"),
+        SeedExercise("Elevação Lateral Máquina", MuscleGroup.SHOULDERS, null, "Elevação Lateral Máquina"),
         SeedExercise("Elevação Lateral com Halteres", MuscleGroup.SHOULDERS, null, "Halteres"),
         SeedExercise("Elevação Lateral na Polia", MuscleGroup.SHOULDERS, null, "Polia Baixa"),
         SeedExercise("Elevação Frontal com Halteres", MuscleGroup.SHOULDERS, null, "Halteres"),
+        SeedExercise("Crucifixo Inverso Máquina", MuscleGroup.SHOULDERS, MuscleGroup.BACK, "Crucifixo Inverso Máquina"),
         SeedExercise("Crucifixo Inverso no Cross", MuscleGroup.SHOULDERS, MuscleGroup.BACK, "Cross Over"),
         SeedExercise("Encolhimento com Halteres", MuscleGroup.SHOULDERS, null, "Halteres"),
 
@@ -93,6 +111,7 @@ object CatalogSeedData {
         SeedExercise("Rosca na Polia Baixa", MuscleGroup.BICEPS, null, "Polia Baixa"),
 
         // Tríceps
+        SeedExercise("Tríceps Máquina", MuscleGroup.TRICEPS, null, "Tríceps Máquina"),
         SeedExercise("Tríceps Pulley (Barra)", MuscleGroup.TRICEPS, null, "Polia Alta"),
         SeedExercise("Tríceps Corda na Polia", MuscleGroup.TRICEPS, null, "Polia Alta"),
         SeedExercise("Tríceps Testa com Barra W", MuscleGroup.TRICEPS, null, "Barra W"),
@@ -104,6 +123,7 @@ object CatalogSeedData {
         SeedExercise("Agachamento no Smith", MuscleGroup.QUADS, MuscleGroup.GLUTES, "Smith Machine"),
         SeedExercise("Hack Squat", MuscleGroup.QUADS, MuscleGroup.GLUTES, "Hack Machine"),
         SeedExercise("Leg Press 45°", MuscleGroup.QUADS, MuscleGroup.GLUTES, "Leg Press 45°"),
+        SeedExercise("Leg Press Horizontal", MuscleGroup.QUADS, MuscleGroup.GLUTES, "Leg Press Horizontal"),
         SeedExercise("Cadeira Extensora", MuscleGroup.QUADS, null, "Cadeira Extensora"),
         SeedExercise("Afundo com Halteres", MuscleGroup.QUADS, MuscleGroup.GLUTES, "Halteres"),
 
@@ -123,9 +143,11 @@ object CatalogSeedData {
         SeedExercise("Panturrilha no Leg Press", MuscleGroup.CALVES, null, "Leg Press 45°"),
 
         // Abdômen / Core e Corpo Inteiro
+        SeedExercise("Abdominal Máquina", MuscleGroup.CORE, null, "Abdominal Máquina"),
         SeedExercise("Abdominal Supra no Solo", MuscleGroup.CORE, null, "Peso Corporal"),
         SeedExercise("Abdominal na Polia Alta", MuscleGroup.CORE, null, "Polia Alta"),
         SeedExercise("Prancha Isométrica", MuscleGroup.CORE, null, "Peso Corporal"),
+        SeedExercise("Caminhada / Trote na Esteira", MuscleGroup.FULL_BODY, null, "Esteira"),
         SeedExercise("Burpee", MuscleGroup.FULL_BODY, null, "Peso Corporal")
     )
 

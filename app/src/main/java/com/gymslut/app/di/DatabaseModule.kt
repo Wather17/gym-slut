@@ -28,6 +28,9 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    private const val SEED_PREFS_NAME = "gym_slut_seed_prefs"
+    private const val KEY_CATALOG_SEED_VERSION = "catalog_seed_version"
+
     @Provides
     @Singleton
     fun provideGymSlutDatabase(
@@ -41,14 +44,21 @@ object DatabaseModule {
         )
             .addCallback(
                 object : RoomDatabase.Callback() {
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        super.onCreate(db)
-                        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                            val database = databaseProvider.get()
-                            CatalogSeedData.seedIfNeeded(
-                                equipmentDao = database.equipmentDao(),
-                                exerciseDao = database.exerciseDao()
-                            )
+                    override fun onOpen(db: SupportSQLiteDatabase) {
+                        super.onOpen(db)
+                        val prefs = context.getSharedPreferences(SEED_PREFS_NAME, Context.MODE_PRIVATE)
+                        val appliedVersion = prefs.getInt(KEY_CATALOG_SEED_VERSION, 0)
+                        if (appliedVersion < CatalogSeedData.SEED_VERSION) {
+                            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                                val database = databaseProvider.get()
+                                CatalogSeedData.seedIfNeeded(
+                                    equipmentDao = database.equipmentDao(),
+                                    exerciseDao = database.exerciseDao()
+                                )
+                                prefs.edit()
+                                    .putInt(KEY_CATALOG_SEED_VERSION, CatalogSeedData.SEED_VERSION)
+                                    .apply()
+                            }
                         }
                     }
                 }
