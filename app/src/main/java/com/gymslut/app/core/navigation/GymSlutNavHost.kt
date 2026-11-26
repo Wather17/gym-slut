@@ -28,6 +28,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.gymslut.app.R
+import com.gymslut.app.feature.catalog.CatalogScreen
 
 /**
  * Shell principal com barra de navegação inferior de 4 abas e rotas secundárias.
@@ -119,7 +120,7 @@ fun GymSlutAppShell() {
                 PlaceholderScreen(text = stringResource(R.string.placeholder_plans))
             }
             composable(AppDestination.Catalog.route) {
-                PlaceholderScreen(text = stringResource(R.string.placeholder_catalog))
+                CatalogScreen()
             }
             composable(AppDestination.History.route) {
                 PlaceholderScreen(text = stringResource(R.string.placeholder_history))
